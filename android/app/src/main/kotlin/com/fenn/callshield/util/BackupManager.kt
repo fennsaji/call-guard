@@ -176,8 +176,6 @@ data class BackupSettings(
     val abpBlockUnrecognizedIsd: Boolean = false,
     val abpBlocklistAgingEnabled: Boolean = false,
     val abpBlocklistAgingDays: Int = 30,
-    val abpBurstProtectionEnabled: Boolean = false,
-    val abpBurstProtectionCount: Int = 3,
 )
 
 @Serializable

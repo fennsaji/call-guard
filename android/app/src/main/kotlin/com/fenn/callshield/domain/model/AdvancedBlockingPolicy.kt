@@ -40,17 +40,13 @@ data class AdvancedBlockingPolicy(
     // Blocklist aging (Pro) — auto-remove entries that haven't called in N days
     val blocklistAgingEnabled: Boolean = false,
     val blocklistAgingDays: Int = 30,
-    // Burst protection (Pro) — auto-block numbers that call N times in 10 minutes
-    val burstProtectionEnabled: Boolean = false,
-    val burstProtectionCount: Int = 3,
 ) {
     /** True if any non-default option is active beyond just the preset field. */
     fun isCustomized(): Boolean =
         allowContactsOnly || silenceUnknownNumbers || vipContactsOnlyEnabled ||
                 nightGuardEnabled || workFocusEnabled ||
                 blockInternational || countryFilterMode != CountryFilterMode.OFF ||
-                blockUnrecognizedIsd || autoEscalateEnabled || blocklistAgingEnabled ||
-                burstProtectionEnabled
+                blockUnrecognizedIsd || autoEscalateEnabled || blocklistAgingEnabled
 }
 
 fun BlockingPreset.toDefaultPolicy(): AdvancedBlockingPolicy = when (this) {

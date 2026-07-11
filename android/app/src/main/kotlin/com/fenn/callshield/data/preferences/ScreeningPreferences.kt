@@ -67,8 +67,6 @@ class ScreeningPreferences @Inject constructor(
         // Number Rules
         val ABP_BLOCKLIST_AGING_ENABLED = booleanPreferencesKey("abp_blocklist_aging_enabled")
         val ABP_BLOCKLIST_AGING_DAYS = intPreferencesKey("abp_blocklist_aging_days")
-        val ABP_BURST_PROTECTION_ENABLED = booleanPreferencesKey("abp_burst_protection_enabled")
-        val ABP_BURST_PROTECTION_COUNT = intPreferencesKey("abp_burst_protection_count")
     }
 
     private fun String.toIntSet(): Set<Int> =
@@ -229,8 +227,6 @@ class ScreeningPreferences @Inject constructor(
                 blockUnrecognizedIsd = prefs[Keys.ABP_BLOCK_UNRECOGNIZED_ISD] ?: false,
                 blocklistAgingEnabled = prefs[Keys.ABP_BLOCKLIST_AGING_ENABLED] ?: false,
                 blocklistAgingDays = prefs[Keys.ABP_BLOCKLIST_AGING_DAYS] ?: 30,
-                burstProtectionEnabled = prefs[Keys.ABP_BURST_PROTECTION_ENABLED] ?: false,
-                burstProtectionCount = prefs[Keys.ABP_BURST_PROTECTION_COUNT] ?: 3,
             )
         }
 
@@ -261,8 +257,6 @@ class ScreeningPreferences @Inject constructor(
             prefs[Keys.ABP_BLOCK_UNRECOGNIZED_ISD] = policy.blockUnrecognizedIsd
             prefs[Keys.ABP_BLOCKLIST_AGING_ENABLED] = policy.blocklistAgingEnabled
             prefs[Keys.ABP_BLOCKLIST_AGING_DAYS] = policy.blocklistAgingDays
-            prefs[Keys.ABP_BURST_PROTECTION_ENABLED] = policy.burstProtectionEnabled
-            prefs[Keys.ABP_BURST_PROTECTION_COUNT] = policy.burstProtectionCount
         }
     }
 
@@ -298,8 +292,6 @@ class ScreeningPreferences @Inject constructor(
             abpBlockUnrecognizedIsd = prefs[Keys.ABP_BLOCK_UNRECOGNIZED_ISD] ?: false,
             abpBlocklistAgingEnabled = prefs[Keys.ABP_BLOCKLIST_AGING_ENABLED] ?: false,
             abpBlocklistAgingDays   = prefs[Keys.ABP_BLOCKLIST_AGING_DAYS] ?: 30,
-            abpBurstProtectionEnabled = prefs[Keys.ABP_BURST_PROTECTION_ENABLED] ?: false,
-            abpBurstProtectionCount = prefs[Keys.ABP_BURST_PROTECTION_COUNT] ?: 3,
         )
     }
 
@@ -334,8 +326,6 @@ class ScreeningPreferences @Inject constructor(
             prefs[Keys.ABP_BLOCK_UNRECOGNIZED_ISD]  = s.abpBlockUnrecognizedIsd
             prefs[Keys.ABP_BLOCKLIST_AGING_ENABLED] = s.abpBlocklistAgingEnabled
             prefs[Keys.ABP_BLOCKLIST_AGING_DAYS]    = s.abpBlocklistAgingDays
-            prefs[Keys.ABP_BURST_PROTECTION_ENABLED] = s.abpBurstProtectionEnabled
-            prefs[Keys.ABP_BURST_PROTECTION_COUNT]  = s.abpBurstProtectionCount
         }
     }
 }

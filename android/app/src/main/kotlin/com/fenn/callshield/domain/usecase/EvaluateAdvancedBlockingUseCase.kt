@@ -27,7 +27,6 @@ import javax.inject.Inject
  *   4b. Country filter (Pro) — whitelist or blacklist specific countries
  *   4c. Block Unrecognized ISD (Pro) — block calls with unresolvable country codes
  *   5. Auto-Escalate — auto-add to blocklist after N rejections
- *   5b. Burst Protection (Pro) — auto-block numbers calling N times in 10 min
  */
 class EvaluateAdvancedBlockingUseCase @Inject constructor(
     private val callHistoryRepo: CallHistoryRepository,
@@ -131,19 +130,6 @@ class EvaluateAdvancedBlockingUseCase @Inject constructor(
                 !blocklistRepo.contains(numberHash)
             ) {
                 blocklistRepo.add(numberHash, "Auto-blocked (${rejections} rejections)")
-                return CallDecision.Reject(DecisionSource.ADVANCED_BLOCKING)
-            }
-        }
-
-        // 5b. Burst Protection (Pro) — auto-block numbers calling N times in 10 min
-        // Contacts are excluded: a family member calling repeatedly must never be auto-blocked.
-        if (isPro && policy.burstProtectionEnabled && numberHash != null && !isContact) {
-            val tenMinAgo = System.currentTimeMillis() - 10L * 60 * 1_000
-            val burstCount = callHistoryRepo.countCallsSince(numberHash, since = tenMinAgo)
-            if (policy.burstProtectionCount >= 2 && burstCount >= policy.burstProtectionCount - 1) {
-                if (!blocklistRepo.contains(numberHash)) {
-                    blocklistRepo.add(numberHash, "Auto-blocked (burst: $burstCount calls in 10 min)")
-                }
                 return CallDecision.Reject(DecisionSource.ADVANCED_BLOCKING)
             }
         }
