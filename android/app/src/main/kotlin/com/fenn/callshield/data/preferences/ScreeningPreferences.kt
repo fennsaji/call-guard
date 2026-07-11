@@ -50,8 +50,6 @@ class ScreeningPreferences @Inject constructor(
         val ABP_BLOCK_INTERNATIONAL = booleanPreferencesKey("abp_block_international")
         val ABP_COUNTRY_FILTER_MODE = stringPreferencesKey("abp_country_filter_mode")
         val ABP_COUNTRY_FILTER_LIST = stringPreferencesKey("abp_country_filter_list") // comma-separated ISO codes
-        val ABP_AUTO_ESCALATE = booleanPreferencesKey("abp_auto_escalate")
-        val ABP_AUTO_ESCALATE_THRESHOLD = intPreferencesKey("abp_auto_escalate_threshold")
         // VIP Contacts
         val ABP_VIP_CONTACTS_ONLY = booleanPreferencesKey("abp_vip_contacts_only")
         // Night Guard day schedule (comma-separated 0=Mon…6=Sun)
@@ -209,8 +207,6 @@ class ScreeningPreferences @Inject constructor(
                     ?: CountryFilterMode.OFF,
                 countryFilterList = prefs[Keys.ABP_COUNTRY_FILTER_LIST]
                     ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet(),
-                autoEscalateEnabled = prefs[Keys.ABP_AUTO_ESCALATE] ?: false,
-                autoEscalateThreshold = prefs[Keys.ABP_AUTO_ESCALATE_THRESHOLD] ?: 3,
                 vipContactsOnlyEnabled = prefs[Keys.ABP_VIP_CONTACTS_ONLY] ?: false,
                 nightGuardDays = prefs[Keys.ABP_NIGHT_GUARD_DAYS]
                     ?.takeIf { it.isNotBlank() }?.toIntSet()
@@ -245,8 +241,6 @@ class ScreeningPreferences @Inject constructor(
             prefs[Keys.ABP_BLOCK_INTERNATIONAL] = policy.blockInternational
             prefs[Keys.ABP_COUNTRY_FILTER_MODE] = policy.countryFilterMode.name
             prefs[Keys.ABP_COUNTRY_FILTER_LIST] = policy.countryFilterList.joinToString(",")
-            prefs[Keys.ABP_AUTO_ESCALATE] = policy.autoEscalateEnabled
-            prefs[Keys.ABP_AUTO_ESCALATE_THRESHOLD] = policy.autoEscalateThreshold
             prefs[Keys.ABP_VIP_CONTACTS_ONLY] = policy.vipContactsOnlyEnabled
             prefs[Keys.ABP_NIGHT_GUARD_DAYS] = policy.nightGuardDays.toPrefsString()
             prefs[Keys.ABP_WORK_FOCUS_ENABLED] = policy.workFocusEnabled
@@ -280,8 +274,6 @@ class ScreeningPreferences @Inject constructor(
             abpBlockInternational   = prefs[Keys.ABP_BLOCK_INTERNATIONAL] ?: false,
             abpCountryFilterMode    = prefs[Keys.ABP_COUNTRY_FILTER_MODE] ?: "OFF",
             abpCountryFilterList    = prefs[Keys.ABP_COUNTRY_FILTER_LIST] ?: "",
-            abpAutoEscalate         = prefs[Keys.ABP_AUTO_ESCALATE] ?: false,
-            abpAutoEscalateThreshold = prefs[Keys.ABP_AUTO_ESCALATE_THRESHOLD] ?: 3,
             abpVipContactsOnly      = prefs[Keys.ABP_VIP_CONTACTS_ONLY] ?: false,
             abpNightGuardDays       = prefs[Keys.ABP_NIGHT_GUARD_DAYS] ?: "0,1,2,3,4,5,6",
             abpWorkFocusEnabled     = prefs[Keys.ABP_WORK_FOCUS_ENABLED] ?: false,
@@ -314,8 +306,6 @@ class ScreeningPreferences @Inject constructor(
             prefs[Keys.ABP_BLOCK_INTERNATIONAL]    = s.abpBlockInternational
             prefs[Keys.ABP_COUNTRY_FILTER_MODE]    = s.abpCountryFilterMode
             prefs[Keys.ABP_COUNTRY_FILTER_LIST]    = s.abpCountryFilterList
-            prefs[Keys.ABP_AUTO_ESCALATE]          = s.abpAutoEscalate
-            prefs[Keys.ABP_AUTO_ESCALATE_THRESHOLD] = s.abpAutoEscalateThreshold
             prefs[Keys.ABP_VIP_CONTACTS_ONLY]       = s.abpVipContactsOnly
             prefs[Keys.ABP_NIGHT_GUARD_DAYS]        = s.abpNightGuardDays
             prefs[Keys.ABP_WORK_FOCUS_ENABLED]      = s.abpWorkFocusEnabled

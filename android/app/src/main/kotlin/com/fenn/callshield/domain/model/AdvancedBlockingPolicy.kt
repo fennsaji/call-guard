@@ -34,9 +34,6 @@ data class AdvancedBlockingPolicy(
     val countryFilterList: Set<String> = emptySet(),
     // Block unrecognized ISD codes (Pro)
     val blockUnrecognizedIsd: Boolean = false,
-    // Escalation
-    val autoEscalateEnabled: Boolean = false,
-    val autoEscalateThreshold: Int = 3,
     // Blocklist aging (Pro) — auto-remove entries that haven't called in N days
     val blocklistAgingEnabled: Boolean = false,
     val blocklistAgingDays: Int = 30,
@@ -46,7 +43,7 @@ data class AdvancedBlockingPolicy(
         allowContactsOnly || silenceUnknownNumbers || vipContactsOnlyEnabled ||
                 nightGuardEnabled || workFocusEnabled ||
                 blockInternational || countryFilterMode != CountryFilterMode.OFF ||
-                blockUnrecognizedIsd || autoEscalateEnabled || blocklistAgingEnabled
+                blockUnrecognizedIsd || blocklistAgingEnabled
 }
 
 fun BlockingPreset.toDefaultPolicy(): AdvancedBlockingPolicy = when (this) {
@@ -54,8 +51,6 @@ fun BlockingPreset.toDefaultPolicy(): AdvancedBlockingPolicy = when (this) {
     BlockingPreset.AGGRESSIVE -> AdvancedBlockingPolicy(
         preset = this,
         silenceUnknownNumbers = true,
-        autoEscalateEnabled = true,
-        autoEscalateThreshold = 2,
     )
     BlockingPreset.CONTACTS_ONLY -> AdvancedBlockingPolicy(
         preset = this,

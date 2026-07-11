@@ -82,7 +82,7 @@ fun NumberRulesScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
 
-            // ── Smart Rules section ───────────────────────────────────────────
+            // ── Blocklist Aging (Pro) ─────────────────────────────────────────
             item {
                 Text(
                     "Smart rules",
@@ -91,69 +91,6 @@ fun NumberRulesScreen(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                 )
                 Spacer(Modifier.height(8.dp))
-
-                // Auto-escalate — single card with toggle + expanded chips
-                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Auto-escalate repeated callers",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    "Add to blocklist after ${policy.autoEscalateThreshold} rejections",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                )
-                            }
-                            Switch(
-                                checked = policy.autoEscalateEnabled,
-                                onCheckedChange = {
-                                    viewModel.updatePolicy(
-                                        policy.copy(autoEscalateEnabled = it, preset = BlockingPreset.CUSTOM)
-                                    )
-                                },
-                            )
-                        }
-
-                        if (policy.autoEscalateEnabled) {
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                            Text(
-                                "Rejection threshold",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                listOf(2, 3, 5, 10).forEach { count ->
-                                    FilterChip(
-                                        selected = policy.autoEscalateThreshold == count,
-                                        onClick = {
-                                            viewModel.updatePolicy(
-                                                policy.copy(
-                                                    autoEscalateThreshold = count,
-                                                    preset = BlockingPreset.CUSTOM,
-                                                )
-                                            )
-                                        },
-                                        label = { Text("$count") },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Blocklist Aging (Pro) ─────────────────────────────────────────
-            item {
                 if (isPro) {
                     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {

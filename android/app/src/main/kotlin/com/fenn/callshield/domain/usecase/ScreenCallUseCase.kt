@@ -83,7 +83,7 @@ class ScreenCallUseCase @Inject constructor(
         // ── 3b. Advanced Blocking Policies ───────────────────────────────────
         val isContact = if (e164 != null) contactsLookupHelper.isInContacts(e164) else false
         if (advPolicy.preset != BlockingPreset.BALANCED || advPolicy.isCustomized()) {
-            evaluateAdvancedBlocking.evaluate(e164, hash, isContact, advPolicy, isPro)
+            evaluateAdvancedBlocking.evaluate(e164, isContact, advPolicy, isPro)
                 ?.let { return it }
         }
 

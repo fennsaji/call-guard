@@ -149,7 +149,7 @@ fun AdvancedBlockingScreen(
                         PolicyGroupCard(
                             icon = Icons.Filled.Security,
                             title = "Number Rules",
-                            description = "Auto-escalate repeated callers to blocklist",
+                            description = "Auto-expire stale blocklist entries",
                             onClick = onNavigateToNumberRules,
                         )
                     }
@@ -398,7 +398,7 @@ private fun BlockingPreset.displayName(): String = when (this) {
 
 private fun BlockingPreset.description(): String = when (this) {
     BlockingPreset.BALANCED -> "Detects known spam. Unknown numbers ring normally."
-    BlockingPreset.AGGRESSIVE -> "Silences unknown callers and learns to block repeat ones"
+    BlockingPreset.AGGRESSIVE -> "Silences every unknown caller — only your saved contacts ring through"
     BlockingPreset.CONTACTS_ONLY -> "Only your saved contacts can reach you"
     BlockingPreset.NIGHT_GUARD -> "No unknown calls during your sleep hours"
     BlockingPreset.INTERNATIONAL_LOCK -> "Blocks calls from outside your country"
@@ -414,8 +414,7 @@ private fun BlockingPreset.details(): List<String> = when (this) {
     BlockingPreset.AGGRESSIVE -> listOf(
         "Unknown callers are silenced — you won't hear the phone ring",
         "You can still see who called and call them back if needed",
-        "If the same number calls twice, it gets added to your blocklist automatically",
-        "Over time, your blocklist grows with no manual work from you",
+        "Only numbers already in your contacts ring through normally",
     )
     BlockingPreset.CONTACTS_ONLY -> listOf(
         "Only people saved in your contacts can call you",
@@ -437,6 +436,6 @@ private fun BlockingPreset.details(): List<String> = when (this) {
         "Choose who can call you: contacts only, silence unknowns, or allow all",
         "Set quiet hours to silence unknown calls at night",
         "Block international numbers",
-        "Auto-block numbers that keep calling after being rejected",
+        "Auto-expire stale blocklist entries",
     )
 }
