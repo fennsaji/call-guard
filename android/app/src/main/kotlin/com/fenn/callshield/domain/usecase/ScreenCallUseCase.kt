@@ -74,9 +74,10 @@ class ScreenCallUseCase @Inject constructor(
         val advPolicy = screeningPreferences.getAdvancedBlockingPolicy()
 
         // ── 3.5. VIP Contacts Only (Pro) ─────────────────────────────────────
+        // Silence, not Reject — this screen's own copy promises "silenced", not disconnected.
         if (isPro && advPolicy.vipContactsOnlyEnabled && e164 != null) {
             if (!vipContactsLookupHelper.isVip(e164)) {
-                return CallDecision.Reject(DecisionSource.ADVANCED_BLOCKING)
+                return CallDecision.Silence(1.0, "vip_only", DecisionSource.ADVANCED_BLOCKING)
             }
         }
 
