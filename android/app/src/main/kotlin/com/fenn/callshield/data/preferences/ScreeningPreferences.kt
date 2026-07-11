@@ -29,7 +29,6 @@ class ScreeningPreferences @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private object Keys {
-        val AUTO_BLOCK = booleanPreferencesKey("auto_block_high_confidence")
         val BLOCK_HIDDEN = booleanPreferencesKey("block_hidden_numbers")
         val NOTIFY_ON_REJECT = booleanPreferencesKey("notify_on_reject")
         val NOTIFY_ON_SILENCE = booleanPreferencesKey("notify_on_silence")
@@ -51,8 +50,6 @@ class ScreeningPreferences @Inject constructor(
         val ABP_BLOCK_INTERNATIONAL = booleanPreferencesKey("abp_block_international")
         val ABP_COUNTRY_FILTER_MODE = stringPreferencesKey("abp_country_filter_mode")
         val ABP_COUNTRY_FILTER_LIST = stringPreferencesKey("abp_country_filter_list") // comma-separated ISO codes
-        val ABP_AUTO_ESCALATE = booleanPreferencesKey("abp_auto_escalate")
-        val ABP_AUTO_ESCALATE_THRESHOLD = intPreferencesKey("abp_auto_escalate_threshold")
         // VIP Contacts
         val ABP_VIP_CONTACTS_ONLY = booleanPreferencesKey("abp_vip_contacts_only")
         // Night Guard day schedule (comma-separated 0=Mon…6=Sun)
@@ -68,17 +65,12 @@ class ScreeningPreferences @Inject constructor(
         // Number Rules
         val ABP_BLOCKLIST_AGING_ENABLED = booleanPreferencesKey("abp_blocklist_aging_enabled")
         val ABP_BLOCKLIST_AGING_DAYS = intPreferencesKey("abp_blocklist_aging_days")
-        val ABP_BURST_PROTECTION_ENABLED = booleanPreferencesKey("abp_burst_protection_enabled")
-        val ABP_BURST_PROTECTION_COUNT = intPreferencesKey("abp_burst_protection_count")
     }
 
     private fun String.toIntSet(): Set<Int> =
         split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
 
     private fun Set<Int>.toPrefsString(): String = sorted().joinToString(",")
-
-    suspend fun autoBlockHighConfidence(): Boolean =
-        context.dataStore.data.first()[Keys.AUTO_BLOCK] ?: false
 
     suspend fun blockHiddenNumbers(): Boolean =
         context.dataStore.data.first()[Keys.BLOCK_HIDDEN] ?: false
@@ -99,7 +91,6 @@ class ScreeningPreferences @Inject constructor(
     suspend fun getScreeningFlags(): ScreeningFlags {
         val prefs = context.dataStore.data.first()
         return ScreeningFlags(
-            autoBlockHighConfidence = prefs[Keys.AUTO_BLOCK] ?: false,
             blockHiddenNumbers      = prefs[Keys.BLOCK_HIDDEN] ?: false,
             notifyOnReject          = prefs[Keys.NOTIFY_ON_REJECT] ?: true,
             notifyOnSilence         = prefs[Keys.NOTIFY_ON_SILENCE] ?: true,
@@ -109,7 +100,6 @@ class ScreeningPreferences @Inject constructor(
     }
 
     data class ScreeningFlags(
-        val autoBlockHighConfidence: Boolean,
         val blockHiddenNumbers: Boolean,
         val notifyOnReject: Boolean,
         val notifyOnSilence: Boolean,
@@ -123,17 +113,14 @@ class ScreeningPreferences @Inject constructor(
     fun observeOnboardingComplete(): Flow<Boolean> =
         context.dataStore.data.map { it[Keys.ONBOARDING_COMPLETE] ?: false }
 
-    /** Observes both protection toggles in a single DataStore stream. */
-    fun observeProtectionFlags(): Flow<Pair<Boolean, Boolean>> =
-        context.dataStore.data.map { prefs ->
-            (prefs[Keys.AUTO_BLOCK] ?: false) to (prefs[Keys.BLOCK_HIDDEN] ?: false)
-        }
+    /** Observes the hidden-number block toggle. */
+    fun observeBlockHiddenNumbers(): Flow<Boolean> =
+        context.dataStore.data.map { prefs -> prefs[Keys.BLOCK_HIDDEN] ?: false }
 
-    /** Observes all 6 screening + notification flags as a live Flow — reacts to backup restore. */
+    /** Observes all screening + notification flags as a live Flow — reacts to backup restore. */
     fun observeAllSettingsFlags(): Flow<ScreeningFlags> =
         context.dataStore.data.map { prefs ->
             ScreeningFlags(
-                autoBlockHighConfidence = prefs[Keys.AUTO_BLOCK] ?: false,
                 blockHiddenNumbers      = prefs[Keys.BLOCK_HIDDEN] ?: false,
                 notifyOnReject          = prefs[Keys.NOTIFY_ON_REJECT] ?: true,
                 notifyOnSilence         = prefs[Keys.NOTIFY_ON_SILENCE] ?: true,
@@ -141,10 +128,6 @@ class ScreeningPreferences @Inject constructor(
                 notifyOnNightGuard      = prefs[Keys.NOTIFY_ON_NIGHT_GUARD] ?: false,
             )
         }
-
-    suspend fun setAutoBlockHighConfidence(value: Boolean) {
-        context.dataStore.edit { it[Keys.AUTO_BLOCK] = value }
-    }
 
     suspend fun setBlockHiddenNumbers(value: Boolean) {
         context.dataStore.edit { it[Keys.BLOCK_HIDDEN] = value }
@@ -224,8 +207,6 @@ class ScreeningPreferences @Inject constructor(
                     ?: CountryFilterMode.OFF,
                 countryFilterList = prefs[Keys.ABP_COUNTRY_FILTER_LIST]
                     ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet(),
-                autoEscalateEnabled = prefs[Keys.ABP_AUTO_ESCALATE] ?: false,
-                autoEscalateThreshold = prefs[Keys.ABP_AUTO_ESCALATE_THRESHOLD] ?: 3,
                 vipContactsOnlyEnabled = prefs[Keys.ABP_VIP_CONTACTS_ONLY] ?: false,
                 nightGuardDays = prefs[Keys.ABP_NIGHT_GUARD_DAYS]
                     ?.takeIf { it.isNotBlank() }?.toIntSet()
@@ -242,8 +223,6 @@ class ScreeningPreferences @Inject constructor(
                 blockUnrecognizedIsd = prefs[Keys.ABP_BLOCK_UNRECOGNIZED_ISD] ?: false,
                 blocklistAgingEnabled = prefs[Keys.ABP_BLOCKLIST_AGING_ENABLED] ?: false,
                 blocklistAgingDays = prefs[Keys.ABP_BLOCKLIST_AGING_DAYS] ?: 30,
-                burstProtectionEnabled = prefs[Keys.ABP_BURST_PROTECTION_ENABLED] ?: false,
-                burstProtectionCount = prefs[Keys.ABP_BURST_PROTECTION_COUNT] ?: 3,
             )
         }
 
@@ -262,8 +241,6 @@ class ScreeningPreferences @Inject constructor(
             prefs[Keys.ABP_BLOCK_INTERNATIONAL] = policy.blockInternational
             prefs[Keys.ABP_COUNTRY_FILTER_MODE] = policy.countryFilterMode.name
             prefs[Keys.ABP_COUNTRY_FILTER_LIST] = policy.countryFilterList.joinToString(",")
-            prefs[Keys.ABP_AUTO_ESCALATE] = policy.autoEscalateEnabled
-            prefs[Keys.ABP_AUTO_ESCALATE_THRESHOLD] = policy.autoEscalateThreshold
             prefs[Keys.ABP_VIP_CONTACTS_ONLY] = policy.vipContactsOnlyEnabled
             prefs[Keys.ABP_NIGHT_GUARD_DAYS] = policy.nightGuardDays.toPrefsString()
             prefs[Keys.ABP_WORK_FOCUS_ENABLED] = policy.workFocusEnabled
@@ -274,8 +251,6 @@ class ScreeningPreferences @Inject constructor(
             prefs[Keys.ABP_BLOCK_UNRECOGNIZED_ISD] = policy.blockUnrecognizedIsd
             prefs[Keys.ABP_BLOCKLIST_AGING_ENABLED] = policy.blocklistAgingEnabled
             prefs[Keys.ABP_BLOCKLIST_AGING_DAYS] = policy.blocklistAgingDays
-            prefs[Keys.ABP_BURST_PROTECTION_ENABLED] = policy.burstProtectionEnabled
-            prefs[Keys.ABP_BURST_PROTECTION_COUNT] = policy.burstProtectionCount
         }
     }
 
@@ -283,7 +258,6 @@ class ScreeningPreferences @Inject constructor(
     suspend fun readAllForBackup(): BackupSettings {
         val prefs = context.dataStore.data.first()
         return BackupSettings(
-            autoBlockHighConfidence = prefs[Keys.AUTO_BLOCK] ?: false,
             blockHiddenNumbers      = prefs[Keys.BLOCK_HIDDEN] ?: false,
             notifyOnReject          = prefs[Keys.NOTIFY_ON_REJECT] ?: true,
             notifyOnSilence         = prefs[Keys.NOTIFY_ON_SILENCE] ?: true,
@@ -300,8 +274,6 @@ class ScreeningPreferences @Inject constructor(
             abpBlockInternational   = prefs[Keys.ABP_BLOCK_INTERNATIONAL] ?: false,
             abpCountryFilterMode    = prefs[Keys.ABP_COUNTRY_FILTER_MODE] ?: "OFF",
             abpCountryFilterList    = prefs[Keys.ABP_COUNTRY_FILTER_LIST] ?: "",
-            abpAutoEscalate         = prefs[Keys.ABP_AUTO_ESCALATE] ?: false,
-            abpAutoEscalateThreshold = prefs[Keys.ABP_AUTO_ESCALATE_THRESHOLD] ?: 3,
             abpVipContactsOnly      = prefs[Keys.ABP_VIP_CONTACTS_ONLY] ?: false,
             abpNightGuardDays       = prefs[Keys.ABP_NIGHT_GUARD_DAYS] ?: "0,1,2,3,4,5,6",
             abpWorkFocusEnabled     = prefs[Keys.ABP_WORK_FOCUS_ENABLED] ?: false,
@@ -312,15 +284,12 @@ class ScreeningPreferences @Inject constructor(
             abpBlockUnrecognizedIsd = prefs[Keys.ABP_BLOCK_UNRECOGNIZED_ISD] ?: false,
             abpBlocklistAgingEnabled = prefs[Keys.ABP_BLOCKLIST_AGING_ENABLED] ?: false,
             abpBlocklistAgingDays   = prefs[Keys.ABP_BLOCKLIST_AGING_DAYS] ?: 30,
-            abpBurstProtectionEnabled = prefs[Keys.ABP_BURST_PROTECTION_ENABLED] ?: false,
-            abpBurstProtectionCount = prefs[Keys.ABP_BURST_PROTECTION_COUNT] ?: 3,
         )
     }
 
     /** Restores all backed-up settings in a single DataStore write. */
     suspend fun restoreFromBackup(s: BackupSettings) {
         context.dataStore.edit { prefs ->
-            prefs[Keys.AUTO_BLOCK]            = s.autoBlockHighConfidence
             prefs[Keys.BLOCK_HIDDEN]          = s.blockHiddenNumbers
             prefs[Keys.NOTIFY_ON_REJECT]      = s.notifyOnReject
             prefs[Keys.NOTIFY_ON_SILENCE]     = s.notifyOnSilence
@@ -337,8 +306,6 @@ class ScreeningPreferences @Inject constructor(
             prefs[Keys.ABP_BLOCK_INTERNATIONAL]    = s.abpBlockInternational
             prefs[Keys.ABP_COUNTRY_FILTER_MODE]    = s.abpCountryFilterMode
             prefs[Keys.ABP_COUNTRY_FILTER_LIST]    = s.abpCountryFilterList
-            prefs[Keys.ABP_AUTO_ESCALATE]          = s.abpAutoEscalate
-            prefs[Keys.ABP_AUTO_ESCALATE_THRESHOLD] = s.abpAutoEscalateThreshold
             prefs[Keys.ABP_VIP_CONTACTS_ONLY]       = s.abpVipContactsOnly
             prefs[Keys.ABP_NIGHT_GUARD_DAYS]        = s.abpNightGuardDays
             prefs[Keys.ABP_WORK_FOCUS_ENABLED]      = s.abpWorkFocusEnabled
@@ -349,8 +316,6 @@ class ScreeningPreferences @Inject constructor(
             prefs[Keys.ABP_BLOCK_UNRECOGNIZED_ISD]  = s.abpBlockUnrecognizedIsd
             prefs[Keys.ABP_BLOCKLIST_AGING_ENABLED] = s.abpBlocklistAgingEnabled
             prefs[Keys.ABP_BLOCKLIST_AGING_DAYS]    = s.abpBlocklistAgingDays
-            prefs[Keys.ABP_BURST_PROTECTION_ENABLED] = s.abpBurstProtectionEnabled
-            prefs[Keys.ABP_BURST_PROTECTION_COUNT]  = s.abpBurstProtectionCount
         }
     }
 }

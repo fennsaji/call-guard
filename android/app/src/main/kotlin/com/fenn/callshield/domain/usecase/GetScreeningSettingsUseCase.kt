@@ -4,7 +4,6 @@ import com.fenn.callshield.data.preferences.ScreeningPreferences
 import javax.inject.Inject
 
 data class ScreeningSettings(
-    val autoBlockHighConfidence: Boolean,
     val blockHiddenNumbers: Boolean,
     val notifyOnReject: Boolean,
     val notifyOnSilence: Boolean,
@@ -18,7 +17,6 @@ class GetScreeningSettingsUseCase @Inject constructor(
     suspend fun get(): ScreeningSettings {
         val flags = prefs.getScreeningFlags()
         return ScreeningSettings(
-            autoBlockHighConfidence = flags.autoBlockHighConfidence,
             blockHiddenNumbers      = flags.blockHiddenNumbers,
             notifyOnReject          = flags.notifyOnReject,
             notifyOnSilence         = flags.notifyOnSilence,

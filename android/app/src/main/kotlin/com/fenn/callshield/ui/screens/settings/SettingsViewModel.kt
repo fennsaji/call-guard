@@ -14,7 +14,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsState(
-    val autoBlock: Boolean = false,
     val blockHidden: Boolean = false,
     val notifyOnReject: Boolean = true,
     val notifyOnSilence: Boolean = true,
@@ -36,7 +35,6 @@ class SettingsViewModel @Inject constructor(
     val state: StateFlow<SettingsState> = prefs.observeAllSettingsFlags()
         .map { flags ->
             SettingsState(
-                autoBlock      = flags.autoBlockHighConfidence,
                 blockHidden    = flags.blockHiddenNumbers,
                 notifyOnReject = flags.notifyOnReject,
                 notifyOnSilence = flags.notifyOnSilence,
@@ -46,7 +44,6 @@ class SettingsViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
-    suspend fun setAutoBlock(v: Boolean) { prefs.setAutoBlockHighConfidence(v) }
     suspend fun setBlockHidden(v: Boolean) { prefs.setBlockHiddenNumbers(v) }
     suspend fun setNotifyOnReject(v: Boolean) { prefs.setNotifyOnReject(v) }
     suspend fun setNotifyOnSilence(v: Boolean) { prefs.setNotifyOnSilence(v) }

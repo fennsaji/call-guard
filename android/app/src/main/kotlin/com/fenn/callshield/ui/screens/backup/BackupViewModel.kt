@@ -108,8 +108,7 @@ class BackupViewModel @Inject constructor(
 
                 payload.settings?.let { s ->
                     val settingsToRestore = if (freeOnly) s.copy(
-                        // Screening — both toggles are pro only
-                        autoBlockHighConfidence = false,
+                        // Screening — pro only
                         blockHiddenNumbers = false,
                         // Night Guard — enabled is free, but custom hours and REJECT action are pro
                         abpNightGuardStart = 22,

@@ -4,19 +4,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**CallShield** — a privacy-first spam and scam call protection app for Android, targeting the Indian market. No contact uploads. No ads. No raw phone number storage. The repository is in pre-development; all content is documentation and planning.
+**CallShield** — a privacy-first spam and scam call protection app for Android, targeting the Indian market. No contact uploads. No ads. No raw phone number storage. Phases 1–5 are implemented on `dev`: Android app under `android/`, Supabase backend under `supabase/`.
 
 Full specs: `docs/PRD/`, `docs/Tech Stack.md`, `docs/Developer Guidelines.md`, `docs/Wireframes.md`
 
 ---
 
-## Tech Stack (Planned)
+## Commands
 
-- **Android:** Kotlin, Jetpack Compose, Hilt, Room (SQLite), Ktor, DataStore
-- **Backend:** Supabase — PostgreSQL + Edge Functions (TypeScript), RLS enabled
-- **Key Android API:** Call Screening API — app must register as the device's call screening service
-- **Monetization:** Google Play Billing Library — freemium, ₹399/year primary / ₹49/month secondary
-- **Min SDK:** Android 10 (API 29)
+Android (from `android/`; Java may not be on `PATH` — prefix with `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"` if `./gradlew` fails to find a JDK):
+```
+./gradlew assembleDebug              # debug build
+./gradlew installDebug                # build + install to connected device/emulator
+./gradlew testDebugUnitTest           # unit tests (reports: app/build/reports/tests/testDebugUnitTest/)
+./gradlew lintDebug                   # lint
+./gradlew bundleRelease               # signed release AAB (needs key.properties + upload-keystore.jks)
+```
+Single test class: `./gradlew testDebugUnitTest --tests "com.fenn.callshield.util.PhoneNumberHasherTest"`. There is no `src/androidTest` — no instrumented tests exist yet.
+
+`./run_android.sh` wraps `installDebug` with `-PSUPABASE_URL=... -PSUPABASE_ANON_KEY=...` read from `android/local.properties`.
+
+Backend (from repo root, requires Supabase CLI):
+```
+./run_backend.sh                                  # supabase start + db reset/migration up + functions serve
+supabase db reset                                 # replay all migrations locally
+supabase functions serve --env-file <path>         # serve Edge Functions locally
+supabase link --project-ref $PROJECT_REF && supabase db push --include-all   # deploy migrations
+supabase functions deploy --no-verify-jwt --project-ref $PROJECT_REF          # deploy functions
+```
+Local ports (`supabase/config.toml`): API 43210, DB 43211, Studio 43212, Inbucket 43213. `enable_signup=false` — there is no user-account system, only device-token auth.
+
+No Edge Function test files exist yet (`*.test.ts`); CI no-ops that step until some are added.
+
+---
+
+## Tech Stack
+
+- **Android:** Kotlin 2.0, Jetpack Compose, Hilt, Room (SQLite), Ktor, DataStore. AGP 8.6.1, compileSdk/targetSdk 35, JVM target 17.
+- **Backend:** Supabase — PostgreSQL + Edge Functions (TypeScript/Deno), RLS enabled, no direct client DB access.
+- **Key Android API:** Call Screening API — app must register as the device's call screening service.
+- **Monetization:** Google Play Billing Library — freemium, ₹399/year primary / ₹49/month secondary.
+- **Min SDK:** Android 10 (API 29).
 
 ---
 
@@ -42,17 +70,29 @@ CallScreeningService
 
 Remote lookup uses a three-state circuit breaker (Closed → Open → Half-open). When Open, all remote calls return `null` immediately — no waiting for timeout.
 
-**Module layout:**
+**Module layout** (source root is `android/app/src/main/kotlin/com/fenn/callshield/`, not `src/main/java`):
 ```
-app/
-├── ui/          # Compose screens, ViewModels
-├── domain/      # Use cases, entities, repository interfaces
-├── data/
-│   ├── local/   # Room DAOs, seed DB access
-│   ├── remote/  # Supabase client, Edge Function calls
-│   └── repository/
-├── screening/   # CallScreeningService + ScreeningOrchestrator
-└── di/          # Hilt modules
+billing/       # BillingManager, PlanType, PromoGrantManager
+data/
+  ├── behavioral/    # Phase 2 behavioral signal buffer
+  ├── local/         # Room DAOs (dao/), entities (entity/), seed DB access
+  ├── preferences/   # DataStore (ScreeningPreferences etc.)
+  └── repository/
+domain/
+  ├── model/     # e.g. AdvancedBlockingPolicy
+  ├── repository/  # interfaces
+  └── usecase/   # e.g. ScreenCallUseCase, EvaluateAdvancedBlockingUseCase
+network/         # Supabase/Ktor client, circuit breaker
+notification/
+screening/       # CallScreeningService + ScreeningOrchestrator
+ui/
+  ├── components/, theme/
+  └── screens/   # one dir per feature (home, onboarding, paywall, settings,
+                 # blocklist, whitelist, calllog, dnd, trai, privacy, protect,
+                 # reason, report, prefix, backup, advancedblocker,
+                 # currentplan, activity, main, permissions)
+di/              # Hilt modules
+util/
 ```
 
 ---
@@ -68,7 +108,7 @@ app/
 | 3 | Prefix rules | Reject or Silence per rule |
 | 4 | Private/hidden number (if enabled) | Reject |
 | 5 | Seed DB | Known Spam → Silence or Reject |
-| 6 | Backend reputation | ≥ 0.6 = Likely Spam; ≥ 0.8 = auto-block (Pro only) |
+| 6 | Backend reputation | ≥ 0.6 = Flag (Likely Spam); ≥ 0.8 = Silence (Known Spam) — flag only, never auto-rejected |
 | 7 | Default | Allow (Unknown) |
 
 ---
@@ -127,13 +167,15 @@ quarantine_queue    -- Phase 2 only; created on Phase 2 feature flag activation
 number_categories   -- Phase 2 only; added alongside category voting
 ```
 
-Edge Functions (TypeScript, Supabase):
+Migrations in `supabase/migrations/` are applied in order: `0001_initial_schema` (reputation, report_events) → `0002_rls_policies` → `0003_auto_purge` (`purge_stale_reputation()`, 12-month TTL) → `0004_phase2_tables` (quarantine_queue, number_categories) → `0005_phase3_family` (despite the filename, this actually creates `reputation_flags` for spike/oscillation/low-trust detection — Family Plan was cut from the product, the migration file just kept its old name).
+
+Edge Functions (`supabase/functions/`): `correct/`, `report/`, `reputation/`, `reputation-harden/`, `seed-db-manifest/`, `verify-subscription/`, sharing `_shared/` (`confidence.ts`, `cors.ts`, `errors.ts`, `rateLimit.ts`).
 - `POST /report` — rate-limit → dedup → insert event → recompute score
 - `GET /reputation` — hash lookup, rate-limited 60/device/hr
 - `POST /correct` — "Not Spam" signal → increment negative_signals → recompute score
 - `GET /seed-db/manifest` — current version + SHA-256 checksum
 
-Clients never access the DB directly. RLS is enabled on all tables.
+Clients never access the DB directly (RLS denies it) — Edge Functions use the service_role key.
 
 ---
 
@@ -163,7 +205,7 @@ These are **not** Phase 1. Do not partially build them:
 | TRAI Quick Report | 2 |
 | SMS scam detection | 2 |
 | Encrypted cloud sync | 3 |
-| Family Protection (QR pairing) | 3 |
+| Family Protection (QR pairing) | 3 (later cut entirely — see Subscription Tiers) |
 | On-device ML | 4 (exploratory only) |
 
 **Also removed from Phase 1:** server-managed HMAC secret (use static salt), `GET /config` endpoint (hardcode formula), timing normalization on GET /reputation, 4-digit QR confirmation.
@@ -173,11 +215,21 @@ These are **not** Phase 1. Do not partially build them:
 ## Subscription Tiers
 
 - **Free:** manual blocking, whitelist, prefix blocking, seed DB detection, manual spam reporting.
-- **Pro (₹399/year or ₹49/month):** auto-block high-confidence spam (before ringing), advanced prefix rules, early DB delta updates.
-- **Family Plan (₹699/year, Phase 3):** two devices via QR pairing.
-- **Lifetime (₹599–799, Phase 4):** Tier 2/3 city segment.
+- **Pro (₹399/year or ₹49/month, plus lifetime):** VIP-contacts-only mode, Night Guard/Work Focus with REJECT action, country filter, blocklist aging, advanced prefix rules, early DB delta updates.
+- Billing product IDs: `callshield_pro_annual` / `callshield_pro_monthly` (SUBS), `callshield_pro_lifetime` (INAPP, no offerToken — use `launchInAppBillingFlow()` not `launchBillingFlow()`). `PlanType` enum: `NONE, PRO_MONTHLY, PRO_ANNUAL, PRO_LIFETIME, PROMO_PRO`.
+- **Family Plan was removed entirely from the codebase** — do not reintroduce it without an explicit product decision. No `FAMILY` variant exists in `PlanType` or `PromoGrant`.
+- **Confidence-score auto-block, Burst Protection, and Auto-Escalate were removed entirely** (2026-07-11) — the app never auto-rejects a call based on reputation score or call frequency alone; repeated calls can be a legitimate emergency, so nothing takes an automatic blocking action without an explicit user-created rule (blocklist/prefix/VIP-only/etc). Do not reintroduce without an explicit product decision. High-confidence spam (≥0.8) still Silences (ring-suppressed), it just never Rejects.
 
 Paywall is triggered at the **value moment** (first spam call silenced for a free user) — not on install.
+
+---
+
+## CI Workflows (`.github/workflows/`)
+
+- **ci-pr.yml** — PRs to main/dev; path-filtered. Android lint + `testDebugUnitTest` (Java 17); backend `deno check` + credential-logging scan + Edge Function structure validation; gated by a final `ci-gate` job.
+- **backend-deploy.yml** — push to main touching `supabase/**`, or manual dispatch. Validates, then `supabase link` → `db push --include-all` → deploy functions → push secrets → smoke-test each endpoint.
+- **android-deploy-playstore.yml** — push to main touching `android/**` or `distribution/whatsnew/**`, or manual dispatch. Validates release notes, builds signed `bundleRelease`, uploads to Play Store Internal Testing, cuts a GitHub prerelease.
+- **deploy-pages.yml** — push to main touching `privacy-policy/**`; publishes it to GitHub Pages.
 
 ---
 
@@ -187,6 +239,7 @@ Paywall is triggered at the **value moment** (first spam call silenced for a fre
 |---|---|
 | `docs/Developer Guidelines.md` | Non-negotiable privacy rules, hashing, circuit breaker, abuse resistance, phase boundaries |
 | `docs/Tech Stack.md` | Full schema DDL, module structure, seed DB pipeline, API diagram |
-| `docs/PRD/Phase 1 PRD.md` | Complete Phase 1 functional requirements |
+| `docs/PRD/Phase 1-5 PRD.md` | Functional requirements per phase |
 | `docs/Wireframes.md` | All 14 Phase 1 screens with annotations |
 | `docs/Roadmap.md` | Phase trigger conditions, risk management |
+| `docs/Known Issues.md` | Standing code-quality audit — critical/major/minor bugs found in the built app, not yet all fixed |

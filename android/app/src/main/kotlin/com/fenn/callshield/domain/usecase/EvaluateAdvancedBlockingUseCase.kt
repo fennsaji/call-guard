@@ -6,8 +6,6 @@ import com.fenn.callshield.domain.model.CallDecision
 import com.fenn.callshield.domain.model.CountryFilterMode
 import com.fenn.callshield.domain.model.DecisionSource
 import com.fenn.callshield.domain.model.UnknownCallAction
-import com.fenn.callshield.domain.repository.BlocklistRepository
-import com.fenn.callshield.domain.repository.CallHistoryRepository
 import com.fenn.callshield.util.HomeCountryProvider
 import java.util.Calendar
 import javax.inject.Inject
@@ -26,18 +24,13 @@ import javax.inject.Inject
  *   4. International Lock — silence/reject numbers outside the device's home country
  *   4b. Country filter (Pro) — whitelist or blacklist specific countries
  *   4c. Block Unrecognized ISD (Pro) — block calls with unresolvable country codes
- *   5. Auto-Escalate — auto-add to blocklist after N rejections
- *   5b. Burst Protection (Pro) — auto-block numbers calling N times in 10 min
  */
 class EvaluateAdvancedBlockingUseCase @Inject constructor(
-    private val callHistoryRepo: CallHistoryRepository,
-    private val blocklistRepo: BlocklistRepository,
     private val homeCountryProvider: HomeCountryProvider,
 ) {
 
     suspend fun evaluate(
         e164Number: String?,
-        numberHash: String?,
         isContact: Boolean,
         policy: AdvancedBlockingPolicy,
         isPro: Boolean,
@@ -119,32 +112,6 @@ class EvaluateAdvancedBlockingUseCase @Inject constructor(
             val callerIso = homeCountryProvider.isoFromE164(e164Number)
             if (callerIso == null) {
                 return CallDecision.Silence(1.0, "unrecognized_isd", DecisionSource.ADVANCED_BLOCKING)
-            }
-        }
-
-        // 5. Auto-Escalate — count only the last 30 days to avoid permanently penalising
-        // numbers that were blocked long ago and later manually cleared.
-        if (policy.autoEscalateEnabled && numberHash != null) {
-            val thirtyDaysAgo = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1_000
-            val rejections = callHistoryRepo.countRejections(numberHash, since = thirtyDaysAgo)
-            if (rejections >= policy.autoEscalateThreshold &&
-                !blocklistRepo.contains(numberHash)
-            ) {
-                blocklistRepo.add(numberHash, "Auto-blocked (${rejections} rejections)")
-                return CallDecision.Reject(DecisionSource.ADVANCED_BLOCKING)
-            }
-        }
-
-        // 5b. Burst Protection (Pro) — auto-block numbers calling N times in 10 min
-        // Contacts are excluded: a family member calling repeatedly must never be auto-blocked.
-        if (isPro && policy.burstProtectionEnabled && numberHash != null && !isContact) {
-            val tenMinAgo = System.currentTimeMillis() - 10L * 60 * 1_000
-            val burstCount = callHistoryRepo.countCallsSince(numberHash, since = tenMinAgo)
-            if (policy.burstProtectionCount >= 2 && burstCount >= policy.burstProtectionCount - 1) {
-                if (!blocklistRepo.contains(numberHash)) {
-                    blocklistRepo.add(numberHash, "Auto-blocked (burst: $burstCount calls in 10 min)")
-                }
-                return CallDecision.Reject(DecisionSource.ADVANCED_BLOCKING)
             }
         }
 

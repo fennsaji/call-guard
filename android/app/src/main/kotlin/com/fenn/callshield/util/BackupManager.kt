@@ -144,7 +144,6 @@ data class BackupPayload(
 @Serializable
 data class BackupSettings(
     // Screening
-    val autoBlockHighConfidence: Boolean = false,
     val blockHiddenNumbers: Boolean = false,
     // Notifications
     val notifyOnReject: Boolean = true,
@@ -164,8 +163,6 @@ data class BackupSettings(
     val abpBlockInternational: Boolean = false,
     val abpCountryFilterMode: String = "OFF",
     val abpCountryFilterList: String = "",
-    val abpAutoEscalate: Boolean = false,
-    val abpAutoEscalateThreshold: Int = 3,
     // Phase 5 extended fields
     val abpVipContactsOnly: Boolean = false,
     val abpNightGuardDays: String = "0,1,2,3,4,5,6",
@@ -177,8 +174,6 @@ data class BackupSettings(
     val abpBlockUnrecognizedIsd: Boolean = false,
     val abpBlocklistAgingEnabled: Boolean = false,
     val abpBlocklistAgingDays: Int = 30,
-    val abpBurstProtectionEnabled: Boolean = false,
-    val abpBurstProtectionCount: Int = 3,
 )
 
 @Serializable

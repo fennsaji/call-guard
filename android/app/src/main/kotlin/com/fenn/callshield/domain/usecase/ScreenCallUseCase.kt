@@ -25,8 +25,8 @@ import javax.inject.Inject
  * Core screening logic. Implements the call decision priority:
  *   Whitelist → Blocklist → Prefix → Behavioral (Phase 2) → Seed DB → Remote → Allow
  *
- * Free tier:  spam calls → Silence (ring suppressed, shows in missed calls)
- * Pro tier:   high-confidence spam (≥0.8) → Reject if auto-block enabled
+ * Spam calls are always Silenced (ring suppressed, shows in missed calls) — never
+ * auto-rejected. Confidence score only changes labeling (Likely Spam vs Known Spam).
  *
  * Called from [CallShieldScreeningService] within the 1500ms Android budget.
  */
@@ -74,16 +74,17 @@ class ScreenCallUseCase @Inject constructor(
         val advPolicy = screeningPreferences.getAdvancedBlockingPolicy()
 
         // ── 3.5. VIP Contacts Only (Pro) ─────────────────────────────────────
+        // Silence, not Reject — this screen's own copy promises "silenced", not disconnected.
         if (isPro && advPolicy.vipContactsOnlyEnabled && e164 != null) {
             if (!vipContactsLookupHelper.isVip(e164)) {
-                return CallDecision.Reject(DecisionSource.ADVANCED_BLOCKING)
+                return CallDecision.Silence(1.0, "vip_only", DecisionSource.ADVANCED_BLOCKING)
             }
         }
 
         // ── 3b. Advanced Blocking Policies ───────────────────────────────────
         val isContact = if (e164 != null) contactsLookupHelper.isInContacts(e164) else false
         if (advPolicy.preset != BlockingPreset.BALANCED || advPolicy.isCustomized()) {
-            evaluateAdvancedBlocking.evaluate(e164, hash, isContact, advPolicy, isPro)
+            evaluateAdvancedBlocking.evaluate(e164, isContact, advPolicy, isPro)
                 ?.let { return it }
         }
 
@@ -132,10 +133,6 @@ class ScreenCallUseCase @Inject constructor(
                 result.source == ReputationSource.SEED_DB
 
             if (hasEnoughSignal) {
-                // Pro auto-block: reject high-confidence spam before it rings
-                if (isPro && settings.autoBlockHighConfidence && score >= CONFIDENCE_BLOCK_THRESHOLD) {
-                    return CallDecision.Reject(source)
-                }
                 // Silence Known Spam (seed DB or high confidence)
                 if (score >= CONFIDENCE_BLOCK_THRESHOLD || result.source == ReputationSource.SEED_DB) {
                     return CallDecision.Silence(score, result.category, source)

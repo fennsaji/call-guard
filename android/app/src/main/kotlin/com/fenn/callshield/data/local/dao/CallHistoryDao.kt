@@ -40,13 +40,6 @@ interface CallHistoryDao {
     )
     suspend fun pruneOldEntries()
 
-    @Query("SELECT COUNT(*) FROM call_history WHERE numberHash = :numberHash AND outcome = 'rejected' AND screenedAt >= :since")
-    suspend fun countRejectionsByHash(numberHash: String, since: Long): Int
-
-    /** Count calls of any outcome from a number since [since]. Used for burst protection and blocklist aging. */
-    @Query("SELECT COUNT(*) FROM call_history WHERE numberHash = :numberHash AND screenedAt >= :since")
-    suspend fun countCallsSince(numberHash: String, since: Long): Int
-
     @Query("DELETE FROM call_history")
     suspend fun deleteAll()
 }
