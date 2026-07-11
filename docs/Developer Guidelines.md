@@ -54,7 +54,7 @@ Rules:
 | 3 | Prefix rules | Number matches a user-defined prefix → Reject or Silence per rule |
 | 4 | Private/hidden number | No caller ID and user has enabled hidden number blocking → Reject |
 | 5 | Seed DB | Number found in seed DB → Known Spam → Silence or Reject per setting |
-| 6 | Backend reputation | confidence_score ≥ 0.6 → Likely Spam; ≥ 0.8 → auto-block (Pro) |
+| 6 | Backend reputation | confidence_score ≥ 0.6 → Flag (Likely Spam); ≥ 0.8 → Silence (Known Spam) — never auto-rejected |
 | 7 | Default | No match → Allow (Unknown) |
 
 If seed DB and backend reputation contradict each other (e.g., seed DB says Known Spam but backend has been corrected with negative signals), the higher-confidence classification wins. The personal whitelist always overrides everything.
@@ -121,7 +121,7 @@ When multiple categories are reported for the same number, the displayed categor
 ## Feature Gating and Subscription Verification
 
 - All Pro-only features must be gated behind a subscription check at the point of use, not just the UI entry point.
-- Auto-block is Pro only. If a subscription lapses, auto-block must disable gracefully without losing the user's configuration.
+- If a subscription lapses, Pro-only Advanced Blocking options (VIP-only, country filter, blocklist aging, Night Guard/Work Focus REJECT action) must disable gracefully without losing the user's configuration.
 - **Subscription state must be verified server-side.** The app must validate the Google Play purchase token via the Google Play Developer API through a Supabase Edge Function (`POST /verify-subscription`). Client-side entitlement state is cached locally but is re-verified on every app launch and on any Pro feature access after a configurable interval (default: 24 hours).
 - If the verification endpoint is unreachable, the cached entitlement state is trusted for up to 72 hours before Pro features are disabled. This prevents legitimate users from being locked out during backend outages.
 - Use a single source of truth for entitlement state — do not scatter subscription checks across the codebase.
@@ -174,6 +174,6 @@ Features scoped to a future phase must not be partially built into the current p
 
 ## Metrics & Analytics
 
-- Track only aggregate, anonymous events: blocks triggered, reports submitted, auto-block usage rate, subscription conversion.
+- Track only aggregate, anonymous events: blocks triggered, reports submitted, Advanced Blocking feature adoption rate, subscription conversion.
 - No user-level event streams. No session replay. No funnel tracking tied to a device identity.
 - If a third-party analytics SDK is added, audit it for data collection before integrating.

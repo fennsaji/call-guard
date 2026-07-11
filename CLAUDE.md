@@ -108,7 +108,7 @@ util/
 | 3 | Prefix rules | Reject or Silence per rule |
 | 4 | Private/hidden number (if enabled) | Reject |
 | 5 | Seed DB | Known Spam → Silence or Reject |
-| 6 | Backend reputation | ≥ 0.6 = Likely Spam; ≥ 0.8 = auto-block (Pro only) |
+| 6 | Backend reputation | ≥ 0.6 = Flag (Likely Spam); ≥ 0.8 = Silence (Known Spam) — flag only, never auto-rejected |
 | 7 | Default | Allow (Unknown) |
 
 ---
@@ -215,9 +215,10 @@ These are **not** Phase 1. Do not partially build them:
 ## Subscription Tiers
 
 - **Free:** manual blocking, whitelist, prefix blocking, seed DB detection, manual spam reporting.
-- **Pro (₹399/year or ₹49/month):** auto-block high-confidence spam (before ringing), advanced prefix rules, early DB delta updates.
+- **Pro (₹399/year or ₹49/month, plus lifetime):** VIP-contacts-only mode, Night Guard/Work Focus with REJECT action, country filter, blocklist aging, advanced prefix rules, early DB delta updates.
 - Billing product IDs: `callshield_pro_annual` / `callshield_pro_monthly` (SUBS), `callshield_pro_lifetime` (INAPP, no offerToken — use `launchInAppBillingFlow()` not `launchBillingFlow()`). `PlanType` enum: `NONE, PRO_MONTHLY, PRO_ANNUAL, PRO_LIFETIME, PROMO_PRO`.
 - **Family Plan was removed entirely from the codebase** — do not reintroduce it without an explicit product decision. No `FAMILY` variant exists in `PlanType` or `PromoGrant`.
+- **Confidence-score auto-block, Burst Protection, and Auto-Escalate were removed entirely** (2026-07-11) — the app never auto-rejects a call based on reputation score or call frequency alone; repeated calls can be a legitimate emergency, so nothing takes an automatic blocking action without an explicit user-created rule (blocklist/prefix/VIP-only/etc). Do not reintroduce without an explicit product decision. High-confidence spam (≥0.8) still Silences (ring-suppressed), it just never Rejects.
 
 Paywall is triggered at the **value moment** (first spam call silenced for a free user) — not on install.
 
