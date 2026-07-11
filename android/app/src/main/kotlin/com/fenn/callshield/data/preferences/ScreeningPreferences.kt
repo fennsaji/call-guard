@@ -29,7 +29,6 @@ class ScreeningPreferences @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private object Keys {
-        val AUTO_BLOCK = booleanPreferencesKey("auto_block_high_confidence")
         val BLOCK_HIDDEN = booleanPreferencesKey("block_hidden_numbers")
         val NOTIFY_ON_REJECT = booleanPreferencesKey("notify_on_reject")
         val NOTIFY_ON_SILENCE = booleanPreferencesKey("notify_on_silence")
@@ -77,9 +76,6 @@ class ScreeningPreferences @Inject constructor(
 
     private fun Set<Int>.toPrefsString(): String = sorted().joinToString(",")
 
-    suspend fun autoBlockHighConfidence(): Boolean =
-        context.dataStore.data.first()[Keys.AUTO_BLOCK] ?: false
-
     suspend fun blockHiddenNumbers(): Boolean =
         context.dataStore.data.first()[Keys.BLOCK_HIDDEN] ?: false
 
@@ -99,7 +95,6 @@ class ScreeningPreferences @Inject constructor(
     suspend fun getScreeningFlags(): ScreeningFlags {
         val prefs = context.dataStore.data.first()
         return ScreeningFlags(
-            autoBlockHighConfidence = prefs[Keys.AUTO_BLOCK] ?: false,
             blockHiddenNumbers      = prefs[Keys.BLOCK_HIDDEN] ?: false,
             notifyOnReject          = prefs[Keys.NOTIFY_ON_REJECT] ?: true,
             notifyOnSilence         = prefs[Keys.NOTIFY_ON_SILENCE] ?: true,
@@ -109,7 +104,6 @@ class ScreeningPreferences @Inject constructor(
     }
 
     data class ScreeningFlags(
-        val autoBlockHighConfidence: Boolean,
         val blockHiddenNumbers: Boolean,
         val notifyOnReject: Boolean,
         val notifyOnSilence: Boolean,
@@ -123,17 +117,14 @@ class ScreeningPreferences @Inject constructor(
     fun observeOnboardingComplete(): Flow<Boolean> =
         context.dataStore.data.map { it[Keys.ONBOARDING_COMPLETE] ?: false }
 
-    /** Observes both protection toggles in a single DataStore stream. */
-    fun observeProtectionFlags(): Flow<Pair<Boolean, Boolean>> =
-        context.dataStore.data.map { prefs ->
-            (prefs[Keys.AUTO_BLOCK] ?: false) to (prefs[Keys.BLOCK_HIDDEN] ?: false)
-        }
+    /** Observes the hidden-number block toggle. */
+    fun observeBlockHiddenNumbers(): Flow<Boolean> =
+        context.dataStore.data.map { prefs -> prefs[Keys.BLOCK_HIDDEN] ?: false }
 
-    /** Observes all 6 screening + notification flags as a live Flow — reacts to backup restore. */
+    /** Observes all screening + notification flags as a live Flow — reacts to backup restore. */
     fun observeAllSettingsFlags(): Flow<ScreeningFlags> =
         context.dataStore.data.map { prefs ->
             ScreeningFlags(
-                autoBlockHighConfidence = prefs[Keys.AUTO_BLOCK] ?: false,
                 blockHiddenNumbers      = prefs[Keys.BLOCK_HIDDEN] ?: false,
                 notifyOnReject          = prefs[Keys.NOTIFY_ON_REJECT] ?: true,
                 notifyOnSilence         = prefs[Keys.NOTIFY_ON_SILENCE] ?: true,
@@ -141,10 +132,6 @@ class ScreeningPreferences @Inject constructor(
                 notifyOnNightGuard      = prefs[Keys.NOTIFY_ON_NIGHT_GUARD] ?: false,
             )
         }
-
-    suspend fun setAutoBlockHighConfidence(value: Boolean) {
-        context.dataStore.edit { it[Keys.AUTO_BLOCK] = value }
-    }
 
     suspend fun setBlockHiddenNumbers(value: Boolean) {
         context.dataStore.edit { it[Keys.BLOCK_HIDDEN] = value }
@@ -283,7 +270,6 @@ class ScreeningPreferences @Inject constructor(
     suspend fun readAllForBackup(): BackupSettings {
         val prefs = context.dataStore.data.first()
         return BackupSettings(
-            autoBlockHighConfidence = prefs[Keys.AUTO_BLOCK] ?: false,
             blockHiddenNumbers      = prefs[Keys.BLOCK_HIDDEN] ?: false,
             notifyOnReject          = prefs[Keys.NOTIFY_ON_REJECT] ?: true,
             notifyOnSilence         = prefs[Keys.NOTIFY_ON_SILENCE] ?: true,
@@ -320,7 +306,6 @@ class ScreeningPreferences @Inject constructor(
     /** Restores all backed-up settings in a single DataStore write. */
     suspend fun restoreFromBackup(s: BackupSettings) {
         context.dataStore.edit { prefs ->
-            prefs[Keys.AUTO_BLOCK]            = s.autoBlockHighConfidence
             prefs[Keys.BLOCK_HIDDEN]          = s.blockHiddenNumbers
             prefs[Keys.NOTIFY_ON_REJECT]      = s.notifyOnReject
             prefs[Keys.NOTIFY_ON_SILENCE]     = s.notifyOnSilence

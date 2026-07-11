@@ -144,7 +144,6 @@ data class BackupPayload(
 @Serializable
 data class BackupSettings(
     // Screening
-    val autoBlockHighConfidence: Boolean = false,
     val blockHiddenNumbers: Boolean = false,
     // Notifications
     val notifyOnReject: Boolean = true,

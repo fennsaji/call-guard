@@ -8,8 +8,8 @@ package com.fenn.callshield.domain.model
  *   2. BLOCKLIST  — reject (disconnect)
  *   3. PREFIX     — reject or silence per rule
  *   4. HIDDEN     — silence or reject based on user setting
- *   5. SEED_DB    — silence (Known Spam); auto-reject if Pro + auto-block enabled
- *   6. REMOTE     — silence if Likely Spam; auto-reject if Pro + score ≥ 0.8
+ *   5. SEED_DB    — silence (Known Spam)
+ *   6. REMOTE     — silence if Likely Spam
  *   7. ALLOW      — no signal found; pass through
  *
  * Silence vs Reject:
@@ -26,7 +26,7 @@ sealed class CallDecision {
         val source: DecisionSource,
     ) : CallDecision()
 
-    /** Call disconnected. Used for blocklist entries and Pro auto-block. */
+    /** Call disconnected. Used for blocklist entries and policy-based rejects (never for confidence score alone). */
     data class Reject(
         val source: DecisionSource,
     ) : CallDecision()

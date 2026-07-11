@@ -40,7 +40,6 @@ data class HomeUiState(
     val stats: CallStats = CallStats(0, 0),
     val isScreeningActive: Boolean = true,
     val scamDigest: ScamDigestEntry? = null,
-    val autoBlock: Boolean = false,
     val blockHidden: Boolean = false,
     val dndOperator: DndOperator? = null,
     val dndCommand: String? = null,       // "FULL", "PROMO", "PARTIAL", or null
@@ -78,8 +77,8 @@ class HomeViewModel @Inject constructor(
     private val _snackbarMessage = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val snackbarMessage: SharedFlow<String> = _snackbarMessage.asSharedFlow()
 
-    private val _protectionState = screeningPreferences.observeProtectionFlags()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, Pair(false, false))
+    private val _protectionState = screeningPreferences.observeBlockHiddenNumbers()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
     private val _isScreeningActive = MutableStateFlow(false)
 
     /** Call on every screen resume to reflect current Call Screening role status. */
@@ -101,7 +100,7 @@ class HomeViewModel @Inject constructor(
         val recentCalls: List<CallHistoryEntry>,
         val scamDigest: ScamDigestEntry?,
         val stats: CallStats,
-        val protection: Pair<Boolean, Boolean>,
+        val blockHidden: Boolean,
         val isScreeningActive: Boolean,
     )
 
@@ -120,8 +119,8 @@ class HomeViewModel @Inject constructor(
             callHistoryRepo.observeStats(),
             _protectionState,
             _isScreeningActive,
-        ) { calls, digest, stats, protection, isActive ->
-            CallsState(calls, digest, stats, protection, isActive)
+        ) { calls, digest, stats, blockHidden, isActive ->
+            CallsState(calls, digest, stats, blockHidden, isActive)
         },
         combine(
             screeningPreferences.observeDndOperator(),
@@ -138,8 +137,7 @@ class HomeViewModel @Inject constructor(
             stats = calls.stats,
             isScreeningActive = calls.isScreeningActive,
             scamDigest = calls.scamDigest,
-            autoBlock = calls.protection.first,
-            blockHidden = calls.protection.second,
+            blockHidden = calls.blockHidden,
             dndOperator = lists.dndOperator,
             dndCommand = lists.dndEntry?.command?.takeIf { it != "DEACTIVATE" },
             dndConfirmed = lists.dndEntry?.confirmedByUser ?: false,
@@ -168,10 +166,6 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             scamDigestDao.dismiss(id)
         }
-    }
-
-    fun setAutoBlock(v: Boolean) {
-        viewModelScope.launch { screeningPreferences.setAutoBlockHighConfidence(v) }
     }
 
     fun setBlockHidden(v: Boolean) {

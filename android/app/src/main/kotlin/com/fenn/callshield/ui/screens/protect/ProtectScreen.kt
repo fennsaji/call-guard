@@ -146,16 +146,6 @@ fun ProtectScreen(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SectionLabel("Controls")
                 ProtectionToggleCard(
-                    icon = Icons.Filled.Shield,
-                    title = "Auto-block high-confidence spam",
-                    description = "Silences high-confidence spam before it rings",
-                    color = dangerColor,
-                    checked = state.autoBlock,
-                    isPro = isPro,
-                    onCheckedChange = { homeViewModel.setAutoBlock(it) },
-                    onLockedClick = onNavigateToPaywall,
-                )
-                ProtectionToggleCard(
                     icon = Icons.Outlined.VisibilityOff,
                     title = "Block hidden numbers",
                     description = "Reject calls from private or hidden callers",
