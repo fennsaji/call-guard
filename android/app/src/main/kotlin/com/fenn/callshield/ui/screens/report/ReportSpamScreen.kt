@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -39,8 +38,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -115,7 +112,6 @@ fun ReportSpamScreen(
     viewModel: ReportSpamViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
     var selectedCategory by rememberSaveable { mutableStateOf<SpamCategory?>(null) }
@@ -160,10 +156,6 @@ fun ReportSpamScreen(
                 onDismiss()
             }
         }
-    }
-
-    LaunchedEffect(state.error) {
-        state.error?.let { snackbarHostState.showSnackbar(it) }
     }
 
     // Confirmation dialog — shown after API success when TRAI redirect is enabled
@@ -218,7 +210,6 @@ fun ReportSpamScreen(
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -314,27 +305,19 @@ fun ReportSpamScreen(
                 Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = {
-                        selectedCategory?.let { cat ->
-                            viewModel.submitReport(numberHash, cat.apiValue)
+                        selectedCategory?.let {
+                            viewModel.submitReport(numberHash, displayLabel)
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
-                    enabled = selectedCategory != null && !state.loading,
+                    enabled = selectedCategory != null,
                 ) {
-                    if (state.loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
-                    } else {
-                        Text(
-                            stringResource(R.string.report_submit),
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                    }
+                    Text(
+                        stringResource(R.string.report_submit),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
                 }
                 Spacer(Modifier.height(16.dp))
             }

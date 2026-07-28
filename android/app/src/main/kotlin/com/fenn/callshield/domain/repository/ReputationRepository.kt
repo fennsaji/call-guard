@@ -8,7 +8,4 @@ interface ReputationRepository {
      * Returns NOT_FOUND if it's not in the seed DB.
      */
     suspend fun lookup(numberHash: String): ReputationResult
-
-    suspend fun submitReport(numberHash: String, category: String): Result<Unit>
-    suspend fun submitCorrection(numberHash: String): Result<Unit>
 }

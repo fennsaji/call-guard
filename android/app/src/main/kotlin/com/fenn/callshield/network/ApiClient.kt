@@ -10,12 +10,8 @@ import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -46,43 +42,6 @@ class ApiClient @Inject constructor() {
 
     private val baseUrl = "${BuildConfig.SUPABASE_URL}/functions/v1"
 
-    private fun checkConfigured() {
-        check(BuildConfig.SUPABASE_URL.isNotBlank()) {
-            "SUPABASE_URL is not configured. Add it to local.properties."
-        }
-    }
-
-    suspend fun postReport(
-        numberHash: String,
-        deviceTokenHash: String,
-        category: String,
-    ): Boolean {
-        checkConfigured()
-        val response = http.post("$baseUrl/report") {
-            contentType(ContentType.Application.Json)
-            setBody(ReportRequest(number_hash = numberHash, device_token_hash = deviceTokenHash, category = category))
-        }
-        if (response.status != HttpStatusCode.OK) {
-            throw ApiException(response.status.value, response.bodyAsText())
-        }
-        return true
-    }
-
-    suspend fun postCorrect(
-        numberHash: String,
-        deviceTokenHash: String,
-    ): Boolean {
-        checkConfigured()
-        val response = http.post("$baseUrl/correct") {
-            contentType(ContentType.Application.Json)
-            setBody(CorrectRequest(number_hash = numberHash, device_token_hash = deviceTokenHash))
-        }
-        if (response.status != HttpStatusCode.OK) {
-            throw ApiException(response.status.value, response.bodyAsText())
-        }
-        return true
-    }
-
     suspend fun getSeedDbManifest(deviceTokenHash: String): SeedDbManifestResponse {
         val response = http.get("$baseUrl/seed-db-manifest") {
             header("x-device-token", deviceTokenHash)
@@ -95,19 +54,6 @@ class ApiClient @Inject constructor() {
 }
 
 // ---- Request/Response models ----
-
-@Serializable
-data class ReportRequest(
-    val number_hash: String,
-    val device_token_hash: String,
-    val category: String,
-)
-
-@Serializable
-data class CorrectRequest(
-    val number_hash: String,
-    val device_token_hash: String,
-)
 
 @Serializable
 data class SeedDbManifestResponse(
