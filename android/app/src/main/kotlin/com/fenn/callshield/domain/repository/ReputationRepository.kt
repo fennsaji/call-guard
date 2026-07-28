@@ -4,12 +4,8 @@ import com.fenn.callshield.domain.model.ReputationResult
 
 interface ReputationRepository {
     /**
-     * Looks up reputation for [numberHash]:
-     *   1. Checks seed DB first (synchronous, always available).
-     *   2. Falls through to remote API with circuit breaker.
-     *   3. Returns NOT_FOUND if both miss or remote is unavailable.
-     *
-     * Must complete within the 1500ms screening window budget.
+     * Looks up reputation for [numberHash] in the local seed DB.
+     * Returns NOT_FOUND if it's not in the seed DB.
      */
     suspend fun lookup(numberHash: String): ReputationResult
 

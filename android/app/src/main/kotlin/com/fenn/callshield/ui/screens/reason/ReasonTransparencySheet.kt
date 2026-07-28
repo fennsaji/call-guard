@@ -29,7 +29,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -52,11 +51,10 @@ import com.fenn.callshield.domain.model.DecisionSource
 import com.fenn.callshield.ui.theme.LocalDangerColor
 import com.fenn.callshield.ui.theme.LocalWarningColor
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 /**
  * Bottom sheet shown when user taps a flagged/silenced call in the history list.
- * PRD §3.14: shows matched prefix rule, seed DB presence, reputation report count.
+ * Shows matched prefix rule, seed DB presence, or behavioral signal reason.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,29 +138,6 @@ fun ReasonTransparencySheet(
                         tint = dangerColor,
                         text = stringResource(R.string.reason_seed_db),
                     )
-                }
-                DecisionSource.REMOTE -> {
-                    val percent = (entry.confidenceScore * 100).roundToInt()
-                    ReasonRow(
-                        icon = Icons.Filled.Warning,
-                        tint = warningColor,
-                        text = stringResource(R.string.reason_remote_confidence, percent),
-                    )
-                    // Confidence progress bar
-                    Column {
-                        Text(
-                            "Confidence: $percent%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        LinearProgressIndicator(
-                            progress = { entry.confidenceScore.toFloat() },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = if (entry.confidenceScore >= 0.8) dangerColor else warningColor,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        )
-                    }
                 }
                 DecisionSource.PREFIX -> {
                     ReasonRow(

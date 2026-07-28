@@ -52,23 +52,6 @@ class ApiClient @Inject constructor() {
         }
     }
 
-    suspend fun getReputation(
-        numberHash: String,
-        deviceTokenHash: String,
-    ): ReputationResponse {
-        checkConfigured()
-        val response = http.get("$baseUrl/reputation") {
-            url {
-                parameters.append("number_hash", numberHash)
-            }
-            header("x-device-token", deviceTokenHash)
-        }
-        if (response.status != HttpStatusCode.OK) {
-            throw ApiException(response.status.value, response.bodyAsText())
-        }
-        return json.decodeFromString(response.bodyAsText())
-    }
-
     suspend fun postReport(
         numberHash: String,
         deviceTokenHash: String,
@@ -112,14 +95,6 @@ class ApiClient @Inject constructor() {
 }
 
 // ---- Request/Response models ----
-
-@Serializable
-data class ReputationResponse(
-    val confidence_score: Double,
-    val category: String? = null,
-    val report_count: Int = 0,
-    val unique_reporters: Int = 0,
-)
 
 @Serializable
 data class ReportRequest(

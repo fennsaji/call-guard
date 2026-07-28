@@ -9,8 +9,7 @@ package com.fenn.callshield.domain.model
  *   3. PREFIX     — reject or silence per rule
  *   4. HIDDEN     — silence or reject based on user setting
  *   5. SEED_DB    — silence (Known Spam)
- *   6. REMOTE     — silence if Likely Spam
- *   7. ALLOW      — no signal found; pass through
+ *   6. ALLOW      — no signal found; pass through
  *
  * Silence vs Reject:
  *   Silence = setDisallowCall(true) + setRejectCall(false) — ring suppressed, goes to missed call
@@ -49,7 +48,6 @@ enum class DecisionSource(val displayLabel: String) {
     HIDDEN("Hidden / private number"),
     ADVANCED_BLOCKING("Blocked by protection policy"),
     SEED_DB("Found in local spam database"),
-    REMOTE("Reported by community"),
     BEHAVIORAL("Suspicious call pattern"),
     DEFAULT("Unknown"),
 }
