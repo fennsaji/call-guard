@@ -2,11 +2,11 @@ package com.fenn.callshield.ui.screens.report
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.fenn.callshield.BuildConfig
 import com.fenn.callshield.data.local.dao.TraiReportDao
 import com.fenn.callshield.data.local.entity.TraiReportEntry
 import com.fenn.callshield.data.preferences.ScreeningPreferences
-import com.fenn.callshield.domain.repository.ReputationRepository
+import com.fenn.callshield.domain.repository.BlocklistRepository
+import com.fenn.callshield.domain.repository.WhitelistRepository
 import com.fenn.callshield.util.HomeCountryProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,15 +16,14 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class ReportSpamState(
-    val loading: Boolean = false,
     val submitted: Boolean = false,
-    val error: String? = null,
     val isIndiaDevice: Boolean = true,
 )
 
 @HiltViewModel
 class ReportSpamViewModel @Inject constructor(
-    private val reputationRepo: ReputationRepository,
+    private val blocklistRepo: BlocklistRepository,
+    private val whitelistRepo: WhitelistRepository,
     private val traiReportDao: TraiReportDao,
     private val screeningPreferences: ScreeningPreferences,
     private val homeCountryProvider: HomeCountryProvider,
@@ -40,20 +39,12 @@ class ReportSpamViewModel @Inject constructor(
         }
     }
 
-    fun submitReport(numberHash: String, category: String) {
+    /** Reporting a call as spam is a local-only action — adds it to the blocklist. */
+    fun submitReport(numberHash: String, displayLabel: String) {
         viewModelScope.launch {
-            val isIndia = _state.value.isIndiaDevice
-            _state.value = ReportSpamState(loading = true, isIndiaDevice = isIndia)
-            val result = reputationRepo.submitReport(numberHash, category)
-            _state.value = if (result.isSuccess) {
-                ReportSpamState(submitted = true, isIndiaDevice = isIndia)
-            } else {
-                val msg = if (BuildConfig.DEBUG)
-                    result.exceptionOrNull()?.message ?: "Unknown error"
-                else
-                    "Could not submit report. Try again."
-                ReportSpamState(error = msg, isIndiaDevice = isIndia)
-            }
+            blocklistRepo.add(numberHash, displayLabel)
+            whitelistRepo.remove(numberHash) // can't be both
+            _state.value = _state.value.copy(submitted = true)
         }
     }
 }

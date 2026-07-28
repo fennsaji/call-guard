@@ -58,25 +58,9 @@ load_prop() {
     grep "^${key}=" "$ENV_FILE" 2>/dev/null | tail -1 | cut -d'=' -f2- | tr -d '\r'
 }
 
-SUPABASE_URL=$(load_prop "SUPABASE_URL")
-SUPABASE_ANON_KEY=$(load_prop "SUPABASE_ANON_KEY")
 HMAC_SALT=$(load_prop "HMAC_SALT")
 
-# ── Validate required vars ─────────────────────────────────────────────────────
-MISSING_VARS=""
-[ -z "$SUPABASE_URL" ]      && MISSING_VARS="${MISSING_VARS}  - SUPABASE_URL\n"
-[ -z "$SUPABASE_ANON_KEY" ] && MISSING_VARS="${MISSING_VARS}  - SUPABASE_ANON_KEY\n"
-
-if [ -n "$MISSING_VARS" ]; then
-    printf "${RED}❌ Missing required properties in ${ENV_FILE}:${NC}\n"
-    printf '%b\n' "$MISSING_VARS"
-    echo "Required: SUPABASE_URL, SUPABASE_ANON_KEY"
-    exit 1
-fi
-
 printf "${GREEN}✅ Properties loaded${NC}\n"
-printf "  SUPABASE_URL:      ${SUPABASE_URL}\n"
-printf "  SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:0:20}...\n"
 if [ -n "$HMAC_SALT" ]; then
     printf "  HMAC_SALT:         ${HMAC_SALT}\n"
 else
@@ -261,31 +245,13 @@ fi
 
 printf "${GREEN}✅ Device ready: ${DEVICE_ID}${NC}\n"
 
-# ── Supabase connectivity check ────────────────────────────────────────────────
-CHECK_URL="$SUPABASE_URL"
-if [[ "$SUPABASE_URL" == *"10.0.2.2"* ]]; then
-    CHECK_URL="${SUPABASE_URL//10.0.2.2/127.0.0.1}"
-    printf "\n${BLUE}🔗 Checking Supabase (${SUPABASE_URL} → testing via 127.0.0.1)...${NC}\n"
-else
-    printf "\n${BLUE}🔗 Checking Supabase: ${SUPABASE_URL}${NC}\n"
-fi
-
-if ! curl -s --connect-timeout 5 --max-time 10 "${CHECK_URL}/rest/v1/" >/dev/null 2>&1; then
-    printf "${RED}❌ Supabase is not accessible at ${SUPABASE_URL}${NC}\n"
-    echo "  • For local backend: run ./run_backend.sh first"
-    echo "  • For emulator targeting host: use SUPABASE_URL=http://10.0.2.2:54321"
-    echo "  • For remote Supabase: verify SUPABASE_URL in ${ENV_FILE}"
-    exit 1
-fi
-printf "${GREEN}✅ Supabase accessible${NC}\n"
-
 # ── Build & install ────────────────────────────────────────────────────────────
 printf "\n${BLUE}🔨 Building debug APK...${NC}\n"
 
 # Compose Gradle -P flags
-GRADLE_PROPS="-PSUPABASE_URL=${SUPABASE_URL} -PSUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}"
+GRADLE_PROPS=""
 if [ -n "$HMAC_SALT" ]; then
-    GRADLE_PROPS="$GRADLE_PROPS -PHMAC_SALT=${HMAC_SALT}"
+    GRADLE_PROPS="-PHMAC_SALT=${HMAC_SALT}"
 fi
 
 cd "$ANDROID_DIR"

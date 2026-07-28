@@ -39,10 +39,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Supabase config — values injected from local.properties or CI secrets
-        buildConfigField("String", "SUPABASE_URL", "\"${localOrProject("SUPABASE_URL")}\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localOrProject("SUPABASE_ANON_KEY")}\"")
-
         // HMAC static salt — bundled in binary, not a secret
         buildConfigField("String", "HMAC_SALT", "\"${localOrProject("HMAC_SALT", "callshield-v1-salt-2024")}\"")
 
@@ -136,15 +132,8 @@ dependencies {
     // DataStore
     implementation(libs.datastore.preferences)
 
-    // Ktor
-    implementation(libs.ktor.client.android)
-    implementation(libs.ktor.client.content.negotiation)
+    // kotlinx.serialization JSON runtime — used by BackupManager/ScamDigestSeeder
     implementation(libs.ktor.serialization.kotlinx.json)
-    implementation(libs.ktor.client.logging)
-
-    // Supabase
-    implementation(libs.supabase.postgrest)
-    implementation(libs.supabase.storage)
 
     // Coroutines
     implementation(libs.coroutines.android)

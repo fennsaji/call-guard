@@ -21,19 +21,14 @@ import androidx.compose.material.icons.automirrored.outlined.CallMissed
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Fingerprint
-import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.GppBad
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material.icons.outlined.Sync
-import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -228,45 +223,9 @@ fun PrivacyDashboardScreen(
                     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(vertical = 4.dp)) {
                             ActivityStatRow(
-                                icon = Icons.Outlined.Upload,
-                                label = "Hashed lookups sent",
-                                value = state.hashedLookupsSent.toString(),
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                            )
-                            ActivityStatRow(
-                                icon = Icons.Outlined.Flag,
-                                label = "Reports submitted",
-                                value = state.reportsSubmitted.toString(),
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                            )
-                            ActivityStatRow(
                                 icon = Icons.Outlined.GppBad,
                                 label = "TRAI complaints prepared",
                                 value = state.traiReportsCount.toString(),
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                            )
-                            ActivityStatRow(
-                                icon = Icons.Outlined.Storage,
-                                label = "Local spam database",
-                                value = state.seedDbVersion ?: "Not downloaded",
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                            )
-                            ActivityStatRow(
-                                icon = Icons.Outlined.Sync,
-                                label = "Last sync",
-                                value = state.lastSyncDisplay,
                             )
                         }
                     }

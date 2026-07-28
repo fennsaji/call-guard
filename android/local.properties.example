@@ -4,10 +4,6 @@
 # Android SDK path (auto-set by Android Studio)
 sdk.dir=/Users/YOUR_USERNAME/Library/Android/sdk
 
-# Supabase — get these from your Supabase project dashboard
-SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-SUPABASE_ANON_KEY=your_anon_key_here
-
 # HMAC salt — bundled in binary, NOT a secret, but keep consistent across builds
 # Default is used if not set: "callshield-v1-salt-2024"
 # HMAC_SALT=callshield-v1-salt-2024

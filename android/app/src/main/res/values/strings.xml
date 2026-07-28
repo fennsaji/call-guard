@@ -69,7 +69,6 @@
 
     <!-- Privacy dashboard -->
     <string name="privacy_title">Privacy dashboard</string>
-    <string name="privacy_data_sent">Data sent to server</string>
     <string name="privacy_hashed_numbers">Hashed numbers checked</string>
     <string name="privacy_reports_submitted">Reports submitted</string>
     <string name="privacy_no_contacts">Contacts accessed: None</string>
@@ -105,7 +104,6 @@
     <!-- Reason transparency -->
     <string name="reason_panel_title">Why was this flagged?</string>
     <string name="reason_seed_db">Found in local spam database</string>
-    <string name="reason_remote">Reported by community (%1$d reports, %2$d%%\u00a0confidence)</string>
     <string name="reason_prefix">Matched prefix rule: %1$s</string>
     <string name="reason_hidden">Hidden / private number</string>
     <string name="reason_blocklist">In your personal blocklist</string>
@@ -129,7 +127,7 @@
     <string name="privacy_delete_confirm">Delete</string>
     <string name="privacy_last_sync">Last database sync: %1$s</string>
     <string name="privacy_last_sync_never">Local database: Not yet downloaded</string>
-    <string name="privacy_trust_statement">We store only a hashed fingerprint of numbers you report. We never see your contacts, call logs, or who called you.</string>
+    <string name="privacy_trust_statement">Reporting or blocking a number stays entirely on your device. We never see your contacts, call logs, or who called you.</string>
 
     <!-- OEM battery -->
     <string name="battery_oem_miui">On MIUI: Security → Battery → CallShield → No restrictions</string>
@@ -155,7 +153,6 @@
 
     <!-- Reason transparency (no-placeholder variants) -->
     <string name="reason_prefix_matched">Matched a prefix blocking rule</string>
-    <string name="reason_remote_confidence">Flagged by community (%1$d%%\u00a0confidence)</string>
 
     <!-- DND Management -->
     <string name="dnd_title">DND Management</string>

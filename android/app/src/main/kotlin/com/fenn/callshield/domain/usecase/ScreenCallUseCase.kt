@@ -5,13 +5,10 @@ import com.fenn.callshield.billing.BillingManager
 import com.fenn.callshield.data.local.ContactsLookupHelper
 import com.fenn.callshield.data.local.VipContactsLookupHelper
 import com.fenn.callshield.data.preferences.ScreeningPreferences
-import com.fenn.callshield.domain.model.CONFIDENCE_BLOCK_THRESHOLD
-import com.fenn.callshield.domain.model.CONFIDENCE_FLAG_THRESHOLD
 import com.fenn.callshield.domain.model.BehavioralSignals
 import com.fenn.callshield.domain.model.BlockingPreset
 import com.fenn.callshield.domain.model.CallDecision
 import com.fenn.callshield.domain.model.DecisionSource
-import com.fenn.callshield.domain.model.MIN_REPORTERS_TO_ACT
 import com.fenn.callshield.domain.model.ReputationSource
 import com.fenn.callshield.domain.repository.BlocklistRepository
 import com.fenn.callshield.domain.repository.PrefixRuleRepository
@@ -23,7 +20,7 @@ import javax.inject.Inject
 
 /**
  * Core screening logic. Implements the call decision priority:
- *   Whitelist → Blocklist → Prefix → Behavioral (Phase 2) → Seed DB → Remote → Allow
+ *   Whitelist → Blocklist → Prefix → Behavioral (Phase 2) → Seed DB → Allow
  *
  * Spam calls are always Silenced (ring suppressed, shows in missed calls) — never
  * auto-rejected. Confidence score only changes labeling (Likely Spam vs Known Spam).
@@ -117,30 +114,11 @@ class ScreenCallUseCase @Inject constructor(
             return CallDecision.Flag(0.5, "burst_pattern", DecisionSource.BEHAVIORAL)
         }
 
-        // ── 5 & 6. Seed DB then Remote reputation ─────────────────────────────
+        // ── 5. Seed DB ─────────────────────────────────────────────────────────
         if (hash != null) {
             val result = reputationRepo.lookup(hash)
-            val score = result.confidenceScore
-            val reporters = result.uniqueReporters
-
-            val source = when (result.source) {
-                ReputationSource.SEED_DB -> DecisionSource.SEED_DB
-                ReputationSource.REMOTE -> DecisionSource.REMOTE
-                ReputationSource.NOT_FOUND -> DecisionSource.DEFAULT
-            }
-
-            val hasEnoughSignal = reporters >= MIN_REPORTERS_TO_ACT ||
-                result.source == ReputationSource.SEED_DB
-
-            if (hasEnoughSignal) {
-                // Silence Known Spam (seed DB or high confidence)
-                if (score >= CONFIDENCE_BLOCK_THRESHOLD || result.source == ReputationSource.SEED_DB) {
-                    return CallDecision.Silence(score, result.category, source)
-                }
-                // Flag Likely Spam — call rings, risk notification posted
-                if (score >= CONFIDENCE_FLAG_THRESHOLD) {
-                    return CallDecision.Flag(score, result.category, source)
-                }
+            if (result.source == ReputationSource.SEED_DB) {
+                return CallDecision.Silence(result.confidenceScore, result.category, DecisionSource.SEED_DB)
             }
 
             // Unknown reputation but behavioral signals present → Flag
