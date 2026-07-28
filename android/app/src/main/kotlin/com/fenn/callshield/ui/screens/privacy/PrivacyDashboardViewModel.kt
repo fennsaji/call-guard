@@ -13,17 +13,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 
 data class PrivacyDashboardState(
-    val hashedLookupsSent: Int = 0,
-    val reportsSubmitted: Int = 0,
     val traiReportsCount: Int = 0,
-    val seedDbVersion: String? = null,
-    val lastSyncDisplay: String = "Never",
 )
 
 @HiltViewModel
@@ -41,15 +34,8 @@ class PrivacyDashboardViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val meta = seedDbDao.getMeta()
-            val lastSync = meta?.downloadedAt?.let {
-                SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(it))
-            } ?: "Never"
-            val traiCount = screeningPreferences.getTraiReportsCount()
             _state.value = _state.value.copy(
-                seedDbVersion = meta?.version?.let { "v$it" },
-                lastSyncDisplay = lastSync,
-                traiReportsCount = traiCount,
+                traiReportsCount = screeningPreferences.getTraiReportsCount(),
             )
         }
     }
