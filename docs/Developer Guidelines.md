@@ -1,5 +1,13 @@
 # CallShield – Developer Guidelines
 
+> **2026-07-11: the Android app no longer makes any network calls.** Remote
+> reputation lookup, report/correct submission, and seed DB delta updates were
+> all removed client-side (backend Edge Functions are untouched and still
+> deployed, just unreached). Sections below describing backend/remote behavior
+> document the rules that applied when those calls existed and that would
+> apply again if remote lookup is reintroduced — they are not describing the
+> app's current live behavior. See `CLAUDE.md` Architecture section for specifics.
+
 ## Privacy Rules (Non-Negotiable)
 
 These apply to every line of code, every API, and every database schema:
@@ -39,9 +47,8 @@ Rules:
 
 ## Call Screening Architecture
 
-- The call screening decision (allow / silence / reject) must complete entirely **within Android's screening time window**. Backend lookups must be non-blocking.
-- **Remote lookup hard timeout: 1500ms.** Use `withTimeout(1500)` with explicit coroutine cancellation. If the backend does not respond within 1500ms, the local result is used and the remote call is cancelled — not left dangling.
-- Offline must work. The app must function correctly with no internet connection using local data alone.
+- The call screening decision (allow / silence / reject) must complete entirely **within Android's screening time window**. All checks are on-device now, so this is comfortably true — if a remote check is ever reintroduced it must stay non-blocking with its own hard timeout, same as the removed 1500ms remote-reputation budget.
+- Offline must work. The app must function correctly with no internet connection using local data alone — trivially true today since there's no network dependency at all.
 
 ### Lookup Order and Conflict Resolution
 
@@ -53,27 +60,20 @@ Rules:
 | 2 | Personal blocklist | Number is blocked → Reject |
 | 3 | Prefix rules | Number matches a user-defined prefix → Reject or Silence per rule |
 | 4 | Private/hidden number | No caller ID and user has enabled hidden number blocking → Reject |
-| 5 | Seed DB | Number found in seed DB → Known Spam → Silence or Reject per setting |
-| 6 | Backend reputation | confidence_score ≥ 0.6 → Flag (Likely Spam); ≥ 0.8 → Silence (Known Spam) — never auto-rejected |
-| 7 | Default | No match → Allow (Unknown) |
+| 5 | Seed DB | Number found in seed DB → Known Spam → Silence (currently never populated — dead code, see banner above) |
+| 6 | Default | No match → Allow (Unknown) |
 
-If seed DB and backend reputation contradict each other (e.g., seed DB says Known Spam but backend has been corrected with negative signals), the higher-confidence classification wins. The personal whitelist always overrides everything.
+The personal whitelist always overrides everything.
 
-### Circuit Breaker
+### Circuit Breaker (removed 2026-07-11, historical reference)
 
-`ReputationRemoteDataSource` must implement a three-state circuit breaker:
-
-- **Closed** (normal): requests go through.
-- **Open** (tripped): backend unreachable or >50% of last 10 requests timed out. All remote calls return `null` immediately. ScreeningOrchestrator falls back to local result. Circuit reopens after 60 seconds.
-- **Half-open**: one probe request sent. If it succeeds, circuit closes. If it fails, circuit stays open.
-
-This prevents the 1500ms timeout from compounding under sustained backend failure.
+When remote reputation lookup existed, `ReputationRemoteDataSource`/`CircuitBreaker` implemented a three-state circuit breaker (Closed → Open → Half-open) to stop the 1500ms timeout from compounding under sustained backend failure. Deleted along with the remote call — reintroduce this pattern if remote lookup ever comes back.
 
 ---
 
 ## Confidence Score Formula
 
-The confidence score is computed server-side by the Edge Function and stored in the `reputation` table. The formula is hardcoded in the Edge Function for Phase 1 — there is no config endpoint. If parameters need tuning, deploy a new Edge Function (Supabase deploys in seconds).
+Backend-only as of 2026-07-11 — the client never calls `GET /reputation`, so this score is never seen by the app. Kept here for when/if remote lookup returns. The confidence score is computed server-side by the Edge Function and stored in the `reputation` table. The formula is hardcoded in the Edge Function for Phase 1 — there is no config endpoint. If parameters need tuning, deploy a new Edge Function (Supabase deploys in seconds).
 
 **Phase 1 formula:**
 
@@ -102,6 +102,8 @@ confidence_score = base_score * recency_decay
 
 ## Abuse Resistance
 
+All of this section describes backend-side protections for endpoints the client no longer calls (`report/`, `reputation/`) — still true of the backend in isolation, moot until the client talks to it again.
+
 ### Play Integrity API (Phase 2)
 From Phase 2 onward, `POST /report` must include a Play Integrity token alongside the device token hash. The Edge Function verifies it server-side before processing the report. This prevents multi-reinstall Sybil attacks at scale.
 
@@ -122,8 +124,7 @@ When multiple categories are reported for the same number, the displayed categor
 
 - All Pro-only features must be gated behind a subscription check at the point of use, not just the UI entry point.
 - If a subscription lapses, Pro-only Advanced Blocking options (VIP-only, country filter, blocklist aging, Night Guard/Work Focus REJECT action) must disable gracefully without losing the user's configuration.
-- **Subscription state must be verified server-side.** The app must validate the Google Play purchase token via the Google Play Developer API through a Supabase Edge Function (`POST /verify-subscription`). Client-side entitlement state is cached locally but is re-verified on every app launch and on any Pro feature access after a configurable interval (default: 24 hours).
-- If the verification endpoint is unreachable, the cached entitlement state is trusted for up to 72 hours before Pro features are disabled. This prevents legitimate users from being locked out during backend outages.
+- **Subscription state should be verified server-side** — the intended design validates the Google Play purchase token via the Google Play Developer API through a Supabase Edge Function (`POST /verify-subscription`). This is aspirational, not current behavior: `BillingManager` has never called this endpoint — entitlement relies solely on the local Play Billing client. Treat this as an open gap, not a description of what exists.
 - Use a single source of truth for entitlement state — do not scatter subscription checks across the codebase.
 
 ---
@@ -163,9 +164,9 @@ Features scoped to a future phase must not be partially built into the current p
 | Behavioral detection scoring | On-device only |
 | Number hashing (HMAC-SHA256) | On-device, before any network call |
 | Device token | Android Keystore |
-| Reputation counters & confidence scores | Supabase (hash-keyed) |
+| Reputation counters & confidence scores | Supabase (hash-keyed) — orphaned, client no longer reads/writes this |
 | Local blocklist, whitelist & prefix rules | Room (SQLite) |
-| Seed spam DB | Bundled asset, delta-updated from backend |
+| Seed spam DB | Room table, but never populated — no bundled asset, no download; dead code kept intentionally |
 | Recent call events buffer (Phase 2) | Room (SQLite), 24h hard TTL |
 | Encrypted backup blobs (Phase 3) | Supabase Storage |
 | call_decision_audit log | Room (SQLite), on-device only |

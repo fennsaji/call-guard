@@ -22,7 +22,7 @@ Android (from `android/`; Java may not be on `PATH` — prefix with `JAVA_HOME="
 ```
 Single test class: `./gradlew testDebugUnitTest --tests "com.fenn.callshield.util.PhoneNumberHasherTest"`. There is no `src/androidTest` — no instrumented tests exist yet.
 
-`./run_android.sh` wraps `installDebug` with `-PSUPABASE_URL=... -PSUPABASE_ANON_KEY=...` read from `android/local.properties`.
+`./run_android.sh` wraps `installDebug`, optionally passing `-PHMAC_SALT=...` read from `android/local.properties`. The app no longer calls Supabase directly (see Architecture below), so no Supabase config is required to build or run it.
 
 Backend (from repo root, requires Supabase CLI):
 ```
@@ -40,8 +40,8 @@ No Edge Function test files exist yet (`*.test.ts`); CI no-ops that step until s
 
 ## Tech Stack
 
-- **Android:** Kotlin 2.0, Jetpack Compose, Hilt, Room (SQLite), Ktor, DataStore. AGP 8.6.1, compileSdk/targetSdk 35, JVM target 17.
-- **Backend:** Supabase — PostgreSQL + Edge Functions (TypeScript/Deno), RLS enabled, no direct client DB access.
+- **Android:** Kotlin 2.0, Jetpack Compose, Hilt, Room (SQLite), DataStore. AGP 8.6.1, compileSdk/targetSdk 35, JVM target 17. No HTTP client — the app makes zero network calls (see Architecture).
+- **Backend:** Supabase — PostgreSQL + Edge Functions (TypeScript/Deno), RLS enabled, no direct client DB access. Deployed and untouched, but currently orphaned — the Android app doesn't call it.
 - **Key Android API:** Call Screening API — app must register as the device's call screening service.
 - **Monetization:** Google Play Billing Library — freemium, ₹399/year primary / ₹49/month secondary.
 - **Min SDK:** Android 10 (API 29).
@@ -55,7 +55,7 @@ No Edge Function test files exist yet (`*.test.ts`); CI no-ops that step until s
 ```
 UI Layer (Compose + ViewModels)
   → Domain Layer (Use Cases + Entities — pure Kotlin)
-    → Data Layer (Repositories + Room + Supabase Edge Functions)
+    → Data Layer (Repositories + Room)
 ```
 
 **`CallScreeningService`** is a separate Android Service, outside the MVVM flow. It has a strict time budget:
@@ -64,11 +64,10 @@ UI Layer (Compose + ViewModels)
 CallScreeningService
   → ScreeningOrchestrator (injectable, unit-testable)
     → [parallel] LocalBlocklistCheck, SeedDatabaseCheck, PrefixRuleCheck
-    → [async, 1500ms hard timeout] ReputationRemoteCheck (Supabase Edge Function)
   → CallDecision (Allow / Silence / Reject)
 ```
 
-Remote lookup uses a three-state circuit breaker (Closed → Open → Half-open). When Open, all remote calls return `null` immediately — no waiting for timeout.
+**The app no longer makes any network calls at all** (2026-07-11) — remote reputation lookup, report/correct submission, and seed DB delta updates were all removed; `network/ApiClient.kt`, `network/CircuitBreaker.kt`, and `di/NetworkModule.kt` are deleted. Screening is 100% on-device (blocklist/whitelist/prefix/seed DB/behavioral). The Supabase backend (`supabase/`) is untouched and still deployed, it's just never called by the client — see Backend Schema below for what's now orphaned. Do not reintroduce a network call here without an explicit product decision.
 
 **Module layout** (source root is `android/app/src/main/kotlin/com/fenn/callshield/`, not `src/main/java`):
 ```
@@ -82,7 +81,6 @@ domain/
   ├── model/     # e.g. AdvancedBlockingPolicy
   ├── repository/  # interfaces
   └── usecase/   # e.g. ScreenCallUseCase, EvaluateAdvancedBlockingUseCase
-network/         # Supabase/Ktor client, circuit breaker
 notification/
 screening/       # CallScreeningService + ScreeningOrchestrator
 ui/
@@ -107,9 +105,8 @@ util/
 | 2 | Personal blocklist | Reject |
 | 3 | Prefix rules | Reject or Silence per rule |
 | 4 | Private/hidden number (if enabled) | Reject |
-| 5 | Seed DB | Known Spam → Silence or Reject |
-| 6 | Backend reputation | ≥ 0.6 = Flag (Likely Spam); ≥ 0.8 = Silence (Known Spam) — flag only, never auto-rejected |
-| 7 | Default | Allow (Unknown) |
+| 5 | Seed DB | Known Spam → Silence (never populated in practice — see What Goes Where) |
+| 6 | Default | Allow (Unknown) |
 
 ---
 
@@ -119,7 +116,7 @@ All phone numbers are hashed **on-device** using HMAC-SHA256 with a **static sal
 
 - Normalize to E.164 first: `+919876543210`
 - Then: `HMAC-SHA256(e164_number, bundled_salt)`
-- The hash is the **only** number-derived value ever sent to or stored on Supabase.
+- The convention still applies to every hash the app computes (blocklist/whitelist/prefix/seed-DB entries), even though as of 2026-07-11 the app makes no network calls at all — nothing is sent to or stored on Supabase currently. Keep hashing on-device regardless, in case remote lookup is reintroduced.
 
 Plain SHA-256 is not used — Indian mobile numbers (~1 billion) are small enough to fully enumerate.
 
@@ -129,8 +126,7 @@ Plain SHA-256 is not used — Indian mobile numbers (~1 billion) are small enoug
 
 - Generated once as a cryptographically random UUID, stored in **Android Keystore**.
 - Survives app **updates** but **not full uninstalls** (Keystore entry is tied to the app UID; uninstall deletes it).
-- Only `HMAC-SHA256(uuid, bundled_salt)` is sent to the backend — the raw UUID never leaves the device.
-- Used for rate limiting and reporter deduplication. Never linked to any account.
+- `HMAC-SHA256(uuid, bundled_salt)` is used for local promo-code validation (`PromoGrantManager`) — never linked to any account. It's no longer sent to a backend for rate limiting/deduplication since those API calls were removed (2026-07-11); the raw UUID has never left the device.
 
 ---
 
@@ -141,9 +137,9 @@ Plain SHA-256 is not used — Indian mobile numbers (~1 billion) are small enoug
 | Blocking decision logic | On-device only |
 | Number hashing (HMAC-SHA256) | On-device, before any network call |
 | Device token | Android Keystore |
-| Reputation counters & confidence scores | Supabase (hash-keyed) |
+| Reputation counters & confidence scores | Supabase (hash-keyed) — orphaned, client no longer reads/writes this |
 | Local blocklist, whitelist & prefix rules | Room (SQLite) |
-| Seed spam DB | Bundled asset, delta-updated via HTTPS + SHA-256 checksum |
+| Seed spam DB | Room table, but **never populated** — nothing bundles or downloads seed data (dead code, kept intentionally, see 2026-07-11 note above) |
 | call_decision_audit log | Room (SQLite), on-device only |
 | Behavioral events buffer (Phase 2) | Room (SQLite), 24h hard TTL |
 | Encrypted backup blobs (Phase 3) | Supabase Storage |
@@ -175,6 +171,8 @@ Edge Functions (`supabase/functions/`): `correct/`, `report/`, `reputation/`, `r
 - `POST /correct` — "Not Spam" signal → increment negative_signals → recompute score
 - `GET /seed-db/manifest` — current version + SHA-256 checksum
 
+**As of 2026-07-11, `report/`, `reputation/`, and `seed-db-manifest/` are orphaned — the Android app no longer calls them.** They're still deployed and functionally correct, just unreached. `verify-subscription/` was already unused client-side before that (see Subscription Tiers). `reputation-harden/` operates on backend data independent of client calls. Backend code/infra was deliberately left as-is when the client-side calls were removed — decommissioning it is a separate decision.
+
 Clients never access the DB directly (RLS denies it) — Edge Functions use the service_role key.
 
 ---
@@ -187,7 +185,7 @@ recency_decay     = max(0, 1 - days_since_last_report / 90)
 confidence_score  = base_score * recency_decay
 ```
 
-Records purged after 12 months of zero reports. Formula is hardcoded — no `GET /config` endpoint in Phase 1.
+Records purged after 12 months of zero reports. Formula is hardcoded — no `GET /config` endpoint in Phase 1. Backend-only now — the client never calls `GET /reputation`, so this score is never seen by the app (see Architecture).
 
 ---
 
@@ -214,11 +212,12 @@ These are **not** Phase 1. Do not partially build them:
 
 ## Subscription Tiers
 
-- **Free:** manual blocking, whitelist, prefix blocking, seed DB detection, manual spam reporting.
+- **Free:** manual blocking, whitelist, prefix blocking, manual spam reporting (local-only, adds to blocklist — no backend involved as of 2026-07-11). Seed DB detection is currently dead code — nothing populates it.
 - **Pro (₹399/year or ₹49/month, plus lifetime):** VIP-contacts-only mode, Night Guard/Work Focus with REJECT action, country filter, blocklist aging, advanced prefix rules, early DB delta updates.
 - Billing product IDs: `callshield_pro_annual` / `callshield_pro_monthly` (SUBS), `callshield_pro_lifetime` (INAPP, no offerToken — use `launchInAppBillingFlow()` not `launchBillingFlow()`). `PlanType` enum: `NONE, PRO_MONTHLY, PRO_ANNUAL, PRO_LIFETIME, PROMO_PRO`.
 - **Family Plan was removed entirely from the codebase** — do not reintroduce it without an explicit product decision. No `FAMILY` variant exists in `PlanType` or `PromoGrant`.
 - **Confidence-score auto-block, Burst Protection, and Auto-Escalate were removed entirely** (2026-07-11) — the app never auto-rejects a call based on reputation score or call frequency alone; repeated calls can be a legitimate emergency, so nothing takes an automatic blocking action without an explicit user-created rule (blocklist/prefix/VIP-only/etc). Do not reintroduce without an explicit product decision. High-confidence spam (≥0.8) still Silences (ring-suppressed), it just never Rejects.
+- `verify-subscription` Edge Function exists on the backend but was never called client-side even before the 2026-07-11 cleanup — `BillingManager` relies solely on the local Play Billing client, no server-side entitlement verification is wired up despite `docs/Developer Guidelines.md` describing one.
 
 Paywall is triggered at the **value moment** (first spam call silenced for a free user) — not on install.
 
